@@ -3,7 +3,7 @@ import { ArtistType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
-import { hashSync } from "bcrypt";
+import { hashSync } from "bcrypt-nodejs";
 
 type DocumentType = Document<any, any, any>;
 
@@ -49,7 +49,7 @@ const mutations = new GraphQLObjectType({
                 try {
                     existingUser = await User.findOne({email });
                     if(existingUser) return new Error("User already exists");
-                    const encryptedPassword = hashSync(password, 1);
+                    const encryptedPassword = hashSync(password);
                     const user = new User({name, email, password: encryptedPassword});
                     return await user.save();
                 } catch (err) {
