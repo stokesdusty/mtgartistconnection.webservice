@@ -8,7 +8,7 @@ const schema_1 = require("../schema/schema");
 const Artist_1 = __importDefault(require("../models/Artist"));
 const mongoose_1 = require("mongoose");
 const User_1 = __importDefault(require("../models/User"));
-const bcrypt_1 = require("bcrypt");
+const bcrypt_nodejs_1 = require("bcrypt-nodejs");
 const RootQuery = new graphql_1.GraphQLObjectType({
     name: "RootQuery",
     fields: {
@@ -51,7 +51,7 @@ const mutations = new graphql_1.GraphQLObjectType({
                     existingUser = await User_1.default.findOne({ email });
                     if (existingUser)
                         return new Error("User already exists");
-                    const encryptedPassword = (0, bcrypt_1.hashSync)(password, 1);
+                    const encryptedPassword = (0, bcrypt_nodejs_1.hashSync)(password);
                     const user = new User_1.default({ name, email, password: encryptedPassword });
                     return await user.save();
                 }
