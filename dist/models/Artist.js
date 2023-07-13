@@ -11,13 +11,13 @@ const artistSchema = new mongoose_1.Schema({
         type: String,
     },
     artistProofs: {
-        type: Boolean,
+        type: String,
     },
     facebook: {
         type: String,
     },
     haveSignature: {
-        type: Boolean,
+        type: String,
     },
     instagram: {
         type: String,
@@ -26,7 +26,7 @@ const artistSchema = new mongoose_1.Schema({
         type: String,
     },
     signing: {
-        type: Boolean,
+        type: String,
     },
     signingComment: {
         type: String,
@@ -44,9 +44,12 @@ const artistSchema = new mongoose_1.Schema({
         type: String,
     },
     markssignatureservice: {
-        type: Boolean,
+        type: String,
     },
     filename: {
+        type: String,
+    },
+    artstation: {
         type: String,
     },
 });

@@ -1,7 +1,9 @@
-import { GraphQLBoolean, GraphQLID, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType } from "../schema/schema";
+import { GraphQLID, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
+import { ArtistType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
-import { Document } from "mongoose";
+import { Document, startSession } from "mongoose";
+import User from "../models/User";
+import { hashSync } from "bcrypt";
 
 type DocumentType = Document<any, any, any>;
 
@@ -12,8 +14,21 @@ const RootQuery = new GraphQLObjectType({
         artists: {
             type: GraphQLList(ArtistType),
             async resolve() {
-                return await Artist.find();
+                return await Artist.find().sort({ name: 1 }).collation({ locale: "en", caseLevel: true });
             },
+        },
+        artistByName: {
+            type: ArtistType,
+            args: { name: { type: GraphQLNonNull(GraphQLString)}},
+            async resolve(parent, { name }) {
+                return await Artist.findOne({ name: name }).exec();
+            },
+        },
+        users: {
+            type: GraphQLList(UserType),
+            async resolve() {
+                return await User.find();
+            }
         },
     },
 });
@@ -21,31 +36,72 @@ const RootQuery = new GraphQLObjectType({
 const mutations = new GraphQLObjectType({
     name: "mutations",
     fields: {
+         // user signup
+         signup: {
+            type: UserType,
+            args: {
+                name: { type: GraphQLNonNull(GraphQLString) },
+                email: { type: GraphQLNonNull(GraphQLString) },
+                password: { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(parent, {name, email, password}) {
+                let existingUser:DocumentType;
+                try {
+                    existingUser = await User.findOne({email });
+                    if(existingUser) return new Error("User already exists");
+                    const encryptedPassword = hashSync(password, 1);
+                    const user = new User({name, email, password: encryptedPassword});
+                    return await user.save();
+                } catch (err) {
+                    return new Error("User Signup Failed. Try again.");
+                }
+            },
+        },
+        // user login
+        login: {
+            type: UserType,
+            args: {
+                email: { type: GraphQLNonNull(GraphQLString) },
+                password: { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(parent, {email, password}) {
+                let existingUser:DocumentType;
+                try {
+                    existingUser = await User.findOne({email});
+                    if (!existingUser) return new Error("No User registered with this email");
+                    // @ts-ignore
+                    const decryptedPassword = compareSync(password, existingUser?.password);
+                    if(!decryptedPassword) return new Error("Incorrect Password");
+                    return existingUser;
+                } catch (err) {
+                    return new Error(err);
+                }
+            },
+        },
         // add artist
         addArtist: {
             type: ArtistType,
             args: {
-                id: { type: GraphQLNonNull(GraphQLID) },
                 name: { type: GraphQLNonNull(GraphQLString) },
                 email: { type: GraphQLString },
-                artistProofs: { type: GraphQLBoolean },
+                artistProofs: { type: GraphQLString },
                 facebook: { type: GraphQLString },
-                haveSignature: { type: GraphQLBoolean },
+                haveSignature: { type: GraphQLString },
                 instagram: { type: GraphQLString },
                 patreon: { type: GraphQLString }, 
-                signing: { type: GraphQLBoolean },
+                signing: { type: GraphQLString },
                 signingComment: { type: GraphQLString },
                 twitter: { type: GraphQLString },
                 url: { type: GraphQLString },
                 youtube: { type: GraphQLString },
                 mountainmage: { type: GraphQLString },
-                markssignatureservice: { type: GraphQLBoolean },
+                markssignatureservice: { type: GraphQLString },
                 filename: { type: GraphQLString },
+                artstation: { type: GraphQLString },
             },
             async resolve(
                 parent,
                 {
-                    id,
                     name,
                     email,
                     artistProofs,
@@ -61,6 +117,7 @@ const mutations = new GraphQLObjectType({
                     mountainmage,
                     markssignatureservice,
                     filename,
+                    artstation,
                 }
                 ) {
                 let existingArtist:DocumentType;
@@ -69,7 +126,6 @@ const mutations = new GraphQLObjectType({
                     if(existingArtist) return new Error("Artist already exists");
                     const artist = new Artist(
                         {
-                            id,
                             name,
                             email,
                             artistProofs,
@@ -84,7 +140,8 @@ const mutations = new GraphQLObjectType({
                             youtube,
                             mountainmage,
                             markssignatureservice,
-                            filename
+                            filename,
+                            artstation,
                         });
                     return await artist.save();
                 } catch (err) {
@@ -92,6 +149,34 @@ const mutations = new GraphQLObjectType({
                 }
             },
         },
+        // delete artist
+        deleteArtist: {
+            type: ArtistType,
+            args: {
+                id: { type: GraphQLNonNull(GraphQLID) },
+            },
+            async resolve(parent, { id }) {
+                const session = await startSession();
+                let artist:DocumentType;
+                try {
+                    session.startTransaction({ session });
+                    artist = await Artist.findById(id);
+                    if (!artist) return new Error("Comment not found");
+                    // @ts-ignore
+                    return await Artist.findByIdAndDelete(artist.id);
+                } catch (err) {
+                    return new Error(err);
+                } finally {
+                    await session.commitTransaction();
+                }
+            },
+        },
+        deleteAllArtists: {
+            type: GraphQLList(ArtistType),
+            async resolve(parent) {
+                return await Artist.deleteMany({});
+            }
+        }
     },
 });
 
