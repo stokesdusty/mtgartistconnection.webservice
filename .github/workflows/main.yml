@@ -27,6 +27,12 @@ jobs:
         run: railway up
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          
+      - name: Uninstall bcrypt
+        run: npm uninstall bcrypt
+        
+      - name: Reinstall bcrypt
+        run: npm install bcrypt
 
       - name: Build
         run: npm run build
