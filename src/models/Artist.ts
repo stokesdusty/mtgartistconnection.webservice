@@ -51,6 +51,9 @@ const artistSchema:Schema = new Schema({
     artstation: {
         type: String,
     },
+    location: {
+        type: String
+    }
 });
 
 export default model("Artist", artistSchema);

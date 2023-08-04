@@ -98,6 +98,7 @@ const mutations = new GraphQLObjectType({
                 markssignatureservice: { type: GraphQLString },
                 filename: { type: GraphQLString },
                 artstation: { type: GraphQLString },
+                location: { type: GraphQLString },
             },
             async resolve(
                 parent,
@@ -118,6 +119,7 @@ const mutations = new GraphQLObjectType({
                     markssignatureservice,
                     filename,
                     artstation,
+                    location,
                 }
                 ) {
                 let existingArtist:DocumentType;
@@ -142,6 +144,7 @@ const mutations = new GraphQLObjectType({
                             markssignatureservice,
                             filename,
                             artstation,
+                            location,
                         });
                     return await artist.save();
                 } catch (err) {
@@ -161,7 +164,7 @@ const mutations = new GraphQLObjectType({
                 try {
                     session.startTransaction({ session });
                     artist = await Artist.findById(id);
-                    if (!artist) return new Error("Comment not found");
+                    if (!artist) return new Error("Artist not found");
                     // @ts-ignore
                     return await Artist.findByIdAndDelete(artist.id);
                 } catch (err) {
@@ -176,6 +179,33 @@ const mutations = new GraphQLObjectType({
             async resolve(parent) {
                 return await Artist.deleteMany({});
             }
+        },
+        updateArtist: {
+            type: ArtistType,
+            args: {
+                id: { type: GraphQLNonNull(GraphQLID) },
+                fieldName: { type: GraphQLNonNull(GraphQLString) },
+                valueToSet: { type: GraphQLNonNull(GraphQLString) }
+            },
+            async resolve(parent, { id, fieldName, valueToSet }){
+                const session = await startSession();
+                let artist:DocumentType;
+                let updateValue = {};
+                updateValue[fieldName] = valueToSet;
+                try {
+                    session.startTransaction({session});
+                    artist = await Artist.findById(id);
+                    if (!artist) return new Error("Artist not found");
+                    return await Artist.findByIdAndUpdate(
+                            { _id: artist.id },
+                            updateValue
+                        );
+                } catch (err) {
+                    return new Error(err);
+                } finally {
+                    await session.commitTransaction();
+                }
+            },
         }
     },
 });

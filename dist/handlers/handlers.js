@@ -104,8 +104,9 @@ const mutations = new graphql_1.GraphQLObjectType({
                 markssignatureservice: { type: graphql_1.GraphQLString },
                 filename: { type: graphql_1.GraphQLString },
                 artstation: { type: graphql_1.GraphQLString },
+                location: { type: graphql_1.GraphQLString },
             },
-            async resolve(parent, { name, email, artistProofs, facebook, haveSignature, instagram, patreon, signing, signingComment, twitter, url, youtube, mountainmage, markssignatureservice, filename, artstation, }) {
+            async resolve(parent, { name, email, artistProofs, facebook, haveSignature, instagram, patreon, signing, signingComment, twitter, url, youtube, mountainmage, markssignatureservice, filename, artstation, location, }) {
                 let existingArtist;
                 try {
                     existingArtist = await Artist_1.default.findOne({ name });
@@ -128,6 +129,7 @@ const mutations = new graphql_1.GraphQLObjectType({
                         markssignatureservice,
                         filename,
                         artstation,
+                        location,
                     });
                     return await artist.save();
                 }
@@ -149,7 +151,7 @@ const mutations = new graphql_1.GraphQLObjectType({
                     session.startTransaction({ session });
                     artist = await Artist_1.default.findById(id);
                     if (!artist)
-                        return new Error("Comment not found");
+                        return new Error("Artist not found");
                     // @ts-ignore
                     return await Artist_1.default.findByIdAndDelete(artist.id);
                 }
@@ -166,6 +168,33 @@ const mutations = new graphql_1.GraphQLObjectType({
             async resolve(parent) {
                 return await Artist_1.default.deleteMany({});
             }
+        },
+        updateArtist: {
+            type: schema_1.ArtistType,
+            args: {
+                id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+                fieldName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                valueToSet: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) }
+            },
+            async resolve(parent, { id, fieldName, valueToSet }) {
+                const session = await (0, mongoose_1.startSession)();
+                let artist;
+                let updateValue = {};
+                updateValue[fieldName] = valueToSet;
+                try {
+                    session.startTransaction({ session });
+                    artist = await Artist_1.default.findById(id);
+                    if (!artist)
+                        return new Error("Artist not found");
+                    return await Artist_1.default.findByIdAndUpdate({ _id: artist.id }, updateValue);
+                }
+                catch (err) {
+                    return new Error(err);
+                }
+                finally {
+                    await session.commitTransaction();
+                }
+            },
         }
     },
 });
