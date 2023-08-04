@@ -19,7 +19,8 @@ export const ArtistType = new GraphQLObjectType({
         mountainmage: { type: GraphQLString, default: "false" },
         markssignatureservice: { type: GraphQLString, default: false },
         filename: { type: GraphQLString },
-        artstation: { type: GraphQLString ,}
+        artstation: { type: GraphQLString },
+        location: { type: GraphQLString },
     }),
 });
 

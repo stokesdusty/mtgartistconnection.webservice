@@ -52,6 +52,9 @@ const artistSchema = new mongoose_1.Schema({
     artstation: {
         type: String,
     },
+    location: {
+        type: String
+    }
 });
 exports.default = (0, mongoose_1.model)("Artist", artistSchema);
 //# sourceMappingURL=Artist.js.map

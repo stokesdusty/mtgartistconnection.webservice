@@ -21,7 +21,8 @@ exports.ArtistType = new graphql_1.GraphQLObjectType({
         mountainmage: { type: graphql_1.GraphQLString, default: "false" },
         markssignatureservice: { type: graphql_1.GraphQLString, default: false },
         filename: { type: graphql_1.GraphQLString },
-        artstation: { type: graphql_1.GraphQLString, }
+        artstation: { type: graphql_1.GraphQLString },
+        location: { type: graphql_1.GraphQLString },
     }),
 });
 exports.UserType = new graphql_1.GraphQLObjectType({
