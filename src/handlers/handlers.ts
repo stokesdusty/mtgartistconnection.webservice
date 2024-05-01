@@ -9,8 +9,6 @@ import MapArtistToEvent from "../models/MapArtistToEvent";
 
 type DocumentType = Document<any, any, any>;
 
-const now = new Date();
-
 const RootQuery = new GraphQLObjectType({
     name: "RootQuery",
     fields: {
@@ -40,12 +38,6 @@ const RootQuery = new GraphQLObjectType({
                 return await SigningEvent.find();
             }
         },
-        signingEventsByEndDate: {
-            type: SigningEventType,
-            async resolve() {
-                return await SigningEvent.find({ "endDate": { gt: now  }});
-            }
-        },
         mapArtistToEvent: {
             type: GraphQLList(MapArtistToEventType),
             async resolve() {
@@ -69,7 +61,7 @@ const mutations = new GraphQLObjectType({
             async resolve(parent, {name, email, password}) {
                 let existingUser:DocumentType;
                 try {
-                    existingUser = await User.findOne({email });
+                    existingUser = await User.findOne({ email });
                     if(existingUser) return new Error("User already exists");
                     const encryptedPassword = hashSync(password);
                     const user = new User({name, email, password: encryptedPassword});
