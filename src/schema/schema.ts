@@ -1,4 +1,4 @@
-import { GraphQLID, GraphQLObjectType, GraphQLString, GraphQLNonNull } from "graphql";
+import { GraphQLID, GraphQLObjectType, GraphQLString, GraphQLNonNull, GraphQLScalarType } from "graphql";
 
 export const ArtistType = new GraphQLObjectType({
     name: "ArtistType",
@@ -31,5 +31,25 @@ export const UserType = new GraphQLObjectType({
         name: { type: GraphQLNonNull(GraphQLString) },
         email: { type: GraphQLNonNull(GraphQLString) },
         password: { type: GraphQLNonNull(GraphQLString) },
+    }),
+});
+
+export const SigningEventType = new GraphQLObjectType({
+    name: "SigningEventType",
+    fields: () => ({
+        id: { type: GraphQLNonNull(GraphQLID) },
+        name: { type: GraphQLNonNull(GraphQLString) },
+        city: { type: GraphQLNonNull(GraphQLString) },
+        startDate: { type: GraphQLNonNull(GraphQLString) },
+        endDate: { type: GraphQLNonNull(GraphQLString) },
+    }),
+});
+
+export const MapArtistToEventType = new GraphQLObjectType({
+    name: "MapArtistToEventType",
+    fields: () => ({
+        id: { type: GraphQLNonNull(GraphQLID) },
+        artistName: { type: GraphQLNonNull(GraphQLString) },
+        eventId: { type: GraphQLNonNull(GraphQLID) },
     }),
 });
