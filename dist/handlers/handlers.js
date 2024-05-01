@@ -11,7 +11,6 @@ const User_1 = __importDefault(require("../models/User"));
 const SigningEvent_1 = __importDefault(require("../models/SigningEvent"));
 const bcrypt_nodejs_1 = require("bcrypt-nodejs");
 const MapArtistToEvent_1 = __importDefault(require("../models/MapArtistToEvent"));
-const ObjectId = require('mongodb').ObjectID;
 const RootQuery = new graphql_1.GraphQLObjectType({
     name: "RootQuery",
     fields: {
@@ -49,10 +48,9 @@ const RootQuery = new graphql_1.GraphQLObjectType({
         },
         mapArtistToEventByEventId: {
             type: (0, graphql_1.GraphQLList)(schema_1.MapArtistToEventType),
-            args: { eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) } },
+            args: { eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) } },
             async resolve(parent, { eventId }) {
-                let _idObject = ObjectId(eventId);
-                return await Artist_1.default.find({ eventId: _idObject }).exec();
+                return await Artist_1.default.find({ eventId: eventId }).exec();
             },
         },
     },
