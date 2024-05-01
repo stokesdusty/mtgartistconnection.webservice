@@ -243,7 +243,7 @@ const mutations = new GraphQLObjectType({
             },
         },
         // add artist to event
-        MapArtistToEvent: {
+        mapArtistToEvent: {
             type: MapArtistToEventType,
             args: {
                 artistName: { type: GraphQLNonNull(GraphQLString) },
