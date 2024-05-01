@@ -11,7 +11,7 @@ const User_1 = __importDefault(require("../models/User"));
 const SigningEvent_1 = __importDefault(require("../models/SigningEvent"));
 const bcrypt_nodejs_1 = require("bcrypt-nodejs");
 const MapArtistToEvent_1 = __importDefault(require("../models/MapArtistToEvent"));
-const now = new Date().toString();
+const now = new Date();
 const RootQuery = new graphql_1.GraphQLObjectType({
     name: "RootQuery",
     fields: {
