@@ -9,7 +9,7 @@ import MapArtistToEvent from "../models/MapArtistToEvent";
 
 type DocumentType = Document<any, any, any>;
 
-const now = new Date().toString();
+const now = new Date();
 
 const RootQuery = new GraphQLObjectType({
     name: "RootQuery",
