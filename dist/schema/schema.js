@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserType = exports.ArtistType = void 0;
+exports.MapArtistToEventType = exports.SigningEventType = exports.UserType = exports.ArtistType = void 0;
 const graphql_1 = require("graphql");
 exports.ArtistType = new graphql_1.GraphQLObjectType({
     name: "ArtistType",
@@ -32,6 +32,24 @@ exports.UserType = new graphql_1.GraphQLObjectType({
         name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
         email: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
         password: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+    }),
+});
+exports.SigningEventType = new graphql_1.GraphQLObjectType({
+    name: "SigningEventType",
+    fields: () => ({
+        id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+        name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        city: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        startDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        endDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+    }),
+});
+exports.MapArtistToEventType = new graphql_1.GraphQLObjectType({
+    name: "MapArtistToEventType",
+    fields: () => ({
+        id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+        artistName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
     }),
 });
 //# sourceMappingURL=schema.js.map

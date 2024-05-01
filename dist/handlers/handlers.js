@@ -8,7 +8,9 @@ const schema_1 = require("../schema/schema");
 const Artist_1 = __importDefault(require("../models/Artist"));
 const mongoose_1 = require("mongoose");
 const User_1 = __importDefault(require("../models/User"));
+const SigningEvent_1 = __importDefault(require("../models/SigningEvent"));
 const bcrypt_nodejs_1 = require("bcrypt-nodejs");
+const MapArtistToEvent_1 = __importDefault(require("../models/MapArtistToEvent"));
 const RootQuery = new graphql_1.GraphQLObjectType({
     name: "RootQuery",
     fields: {
@@ -32,6 +34,18 @@ const RootQuery = new graphql_1.GraphQLObjectType({
                 return await User_1.default.find();
             }
         },
+        signingEvent: {
+            type: (0, graphql_1.GraphQLList)(schema_1.SigningEventType),
+            async resolve() {
+                return await SigningEvent_1.default.find();
+            }
+        },
+        mapArtistToEvent: {
+            type: (0, graphql_1.GraphQLList)(schema_1.MapArtistToEventType),
+            async resolve() {
+                return await MapArtistToEvent_1.default.find();
+            }
+        }
     },
 });
 const mutations = new graphql_1.GraphQLObjectType({
@@ -195,7 +209,51 @@ const mutations = new graphql_1.GraphQLObjectType({
                     await session.commitTransaction();
                 }
             },
-        }
+        },
+        // add event
+        signingEvent: {
+            type: schema_1.SigningEventType,
+            args: {
+                name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                city: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                startDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                endDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+            },
+            async resolve(parent, { name, city, startDate, endDate }) {
+                let existingEvent;
+                try {
+                    existingEvent = await SigningEvent_1.default.findOne({ name });
+                    if (existingEvent)
+                        return new Error("Event already exists");
+                    const newSigningEvent = new SigningEvent_1.default({ name, city, startDate, endDate });
+                    return await newSigningEvent.save();
+                }
+                catch (err) {
+                    return new Error("Add Signing Event Failed. Try again.");
+                }
+            },
+        },
+        // add artist to event
+        mapArtistToEvent: {
+            type: schema_1.MapArtistToEventType,
+            args: {
+                artistName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLInt) },
+            },
+            async resolve(parent, { artistName, eventId }) {
+                let existingArtistInEvent;
+                try {
+                    existingArtistInEvent = await MapArtistToEvent_1.default.findOne({ artistName, eventId });
+                    if (existingArtistInEvent)
+                        return new Error("Artist already exists in event");
+                    const newArtistInEvent = new MapArtistToEvent_1.default({ artistName, eventId });
+                    return await newArtistInEvent.save();
+                }
+                catch (err) {
+                    return new Error("Add Artist to Event Failed. Try again.");
+                }
+            },
+        },
     },
 });
 exports.default = new graphql_1.GraphQLSchema({ query: RootQuery, mutation: mutations });
