@@ -1,0 +1,1 @@
+{"version":3,"file":"MapArtistToEvent.js","sourceRoot":"","sources":["../../src/models/MapArtistToEvent.ts"],"names":[],"mappings":";;AAAA,uCAAyC;AAEzC,MAAM,sBAAsB,GAAU,IAAI,iBAAM,CAAC;IAC7C,UAAU,EAAE;QACR,IAAI,EAAE,MAAM;QACZ,QAAQ,EAAE,IAAI;KACjB;IACD,OAAO,EAAE;QACL,IAAI,EAAE,MAAM;QACZ,QAAQ,EAAE,IAAI;KACjB;CACJ,CAAC,CAAC;AAEH,kBAAe,IAAA,gBAAK,EAAC,kBAAkB,EAAE,sBAAsB,CAAC,CAAC"}
