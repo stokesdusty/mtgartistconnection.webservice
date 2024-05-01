@@ -7,7 +7,7 @@ const mapArtistToEventSchema = new mongoose_1.Schema({
         required: true,
     },
     eventId: {
-        type: Number,
+        type: String,
         required: true,
     },
 });
