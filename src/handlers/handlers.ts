@@ -9,6 +9,8 @@ import MapArtistToEvent from "../models/MapArtistToEvent";
 
 type DocumentType = Document<any, any, any>;
 
+const now = new Date().toString();
+
 const RootQuery = new GraphQLObjectType({
     name: "RootQuery",
     fields: {
@@ -38,12 +40,18 @@ const RootQuery = new GraphQLObjectType({
                 return await SigningEvent.find();
             }
         },
+        signingEventsByEndDate: {
+            type: SigningEventType,
+            async resolve() {
+                return await SigningEvent.find({ "endDate": { gt: now  }});
+            }
+        },
         mapArtistToEvent: {
             type: GraphQLList(MapArtistToEventType),
             async resolve() {
                 return await MapArtistToEvent.find();
             }
-        }
+        },
     },
 });
 
