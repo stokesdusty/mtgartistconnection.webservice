@@ -1,4 +1,4 @@
-import { GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
+import { GraphQLID, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
 import { ArtistType, MapArtistToEventType, SigningEventType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
@@ -8,6 +8,8 @@ import { hashSync } from "bcrypt-nodejs";
 import MapArtistToEvent from "../models/MapArtistToEvent";
 
 type DocumentType = Document<any, any, any>;
+
+const ObjectId = require('mongodb').ObjectID;
 
 const RootQuery = new GraphQLObjectType({
     name: "RootQuery",
@@ -48,7 +50,8 @@ const RootQuery = new GraphQLObjectType({
             type: GraphQLList(MapArtistToEventType),
             args: { eventId: { type: GraphQLNonNull(GraphQLID)}},
             async resolve(parent, { eventId }) {
-                return await Artist.find({ eventId: eventId }).exec();
+                let _idObject = ObjectId(eventId)
+                return await Artist.find({ eventId: _idObject }).exec();
             },
         },
     },
