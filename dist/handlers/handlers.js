@@ -11,6 +11,7 @@ const User_1 = __importDefault(require("../models/User"));
 const SigningEvent_1 = __importDefault(require("../models/SigningEvent"));
 const bcrypt_nodejs_1 = require("bcrypt-nodejs");
 const MapArtistToEvent_1 = __importDefault(require("../models/MapArtistToEvent"));
+const now = new Date().toString();
 const RootQuery = new graphql_1.GraphQLObjectType({
     name: "RootQuery",
     fields: {
@@ -40,12 +41,18 @@ const RootQuery = new graphql_1.GraphQLObjectType({
                 return await SigningEvent_1.default.find();
             }
         },
+        signingEventsByEndDate: {
+            type: schema_1.SigningEventType,
+            async resolve() {
+                return await SigningEvent_1.default.find({ "endDate": { gt: now } });
+            }
+        },
         mapArtistToEvent: {
             type: (0, graphql_1.GraphQLList)(schema_1.MapArtistToEventType),
             async resolve() {
                 return await MapArtistToEvent_1.default.find();
             }
-        }
+        },
     },
 });
 const mutations = new graphql_1.GraphQLObjectType({
