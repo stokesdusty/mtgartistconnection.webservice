@@ -46,6 +46,13 @@ const RootQuery = new graphql_1.GraphQLObjectType({
                 return await MapArtistToEvent_1.default.find();
             }
         },
+        mapArtistToEventByEventId: {
+            type: (0, graphql_1.GraphQLList)(schema_1.MapArtistToEventType),
+            args: { eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) } },
+            async resolve(parent, { eventId }) {
+                return await Artist_1.default.find({ eventId: eventId }).exec();
+            },
+        },
     },
 });
 const mutations = new graphql_1.GraphQLObjectType({

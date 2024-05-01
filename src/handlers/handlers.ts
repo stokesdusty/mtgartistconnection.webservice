@@ -44,6 +44,13 @@ const RootQuery = new GraphQLObjectType({
                 return await MapArtistToEvent.find();
             }
         },
+        mapArtistToEventByEventId: {
+            type: GraphQLList(MapArtistToEventType),
+            args: { eventId: { type: GraphQLNonNull(GraphQLString)}},
+            async resolve(parent, { eventId }) {
+                return await Artist.find({ eventId: eventId }).exec();
+            },
+        },
     },
 });
 
