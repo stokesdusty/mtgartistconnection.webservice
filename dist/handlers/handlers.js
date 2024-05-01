@@ -238,7 +238,7 @@ const mutations = new graphql_1.GraphQLObjectType({
             type: schema_1.MapArtistToEventType,
             args: {
                 artistName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
-                eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLInt) },
+                eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
             },
             async resolve(parent, { artistName, eventId }) {
                 let existingArtistInEvent;

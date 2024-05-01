@@ -247,7 +247,7 @@ const mutations = new GraphQLObjectType({
             type: MapArtistToEventType,
             args: {
                 artistName: { type: GraphQLNonNull(GraphQLString) },
-                eventId: { type: GraphQLNonNull(GraphQLInt) },
+                eventId: { type: GraphQLNonNull(GraphQLString) },
             },
             async resolve(parent, {artistName, eventId}) {
                 let existingArtistInEvent:DocumentType;
