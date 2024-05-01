@@ -9,8 +9,6 @@ import MapArtistToEvent from "../models/MapArtistToEvent";
 
 type DocumentType = Document<any, any, any>;
 
-const ObjectId = require('mongodb').ObjectID;
-
 const RootQuery = new GraphQLObjectType({
     name: "RootQuery",
     fields: {
@@ -48,10 +46,9 @@ const RootQuery = new GraphQLObjectType({
         },
         mapArtistToEventByEventId: {
             type: GraphQLList(MapArtistToEventType),
-            args: { eventId: { type: GraphQLNonNull(GraphQLID)}},
+            args: { eventId: { type: GraphQLNonNull(GraphQLString)}},
             async resolve(parent, { eventId }) {
-                let _idObject = ObjectId(eventId)
-                return await Artist.find({ eventId: _idObject }).exec();
+                return await Artist.find({ eventId: eventId }).exec();
             },
         },
     },
