@@ -49,7 +49,7 @@ exports.MapArtistToEventType = new graphql_1.GraphQLObjectType({
     fields: () => ({
         id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
         artistName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
-        eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
     }),
 });
 //# sourceMappingURL=schema.js.map

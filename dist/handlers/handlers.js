@@ -48,7 +48,7 @@ const RootQuery = new graphql_1.GraphQLObjectType({
         },
         mapArtistToEventByEventId: {
             type: (0, graphql_1.GraphQLList)(schema_1.MapArtistToEventType),
-            args: { eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) } },
+            args: { eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) } },
             async resolve(parent, { eventId }) {
                 return await Artist_1.default.find({ eventId: eventId }).exec();
             },
