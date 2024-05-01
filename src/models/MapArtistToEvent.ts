@@ -6,7 +6,7 @@ const mapArtistToEventSchema:Schema = new Schema({
         required: true,
     },
     eventId: {
-        type: Number,
+        type: String,
         required: true,
     },
 });
