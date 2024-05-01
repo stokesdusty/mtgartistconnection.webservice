@@ -50,6 +50,6 @@ export const MapArtistToEventType = new GraphQLObjectType({
     fields: () => ({
         id: { type: GraphQLNonNull(GraphQLID) },
         artistName: { type: GraphQLNonNull(GraphQLString) },
-        eventId: { type: GraphQLNonNull(GraphQLString) },
+        eventId: { type: GraphQLNonNull(GraphQLID) },
     }),
 });
