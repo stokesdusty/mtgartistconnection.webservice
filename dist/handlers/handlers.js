@@ -126,8 +126,9 @@ const mutations = new graphql_1.GraphQLObjectType({
                 filename: { type: graphql_1.GraphQLString },
                 artstation: { type: graphql_1.GraphQLString },
                 location: { type: graphql_1.GraphQLString },
+                bluesky: { type: graphql_1.GraphQLString },
             },
-            async resolve(parent, { name, email, artistProofs, facebook, haveSignature, instagram, patreon, signing, signingComment, twitter, url, youtube, mountainmage, markssignatureservice, filename, artstation, location, }) {
+            async resolve(parent, { name, email, artistProofs, facebook, haveSignature, instagram, patreon, signing, signingComment, twitter, url, youtube, mountainmage, markssignatureservice, filename, artstation, location, bluesky, }) {
                 let existingArtist;
                 try {
                     existingArtist = await Artist_1.default.findOne({ name });
@@ -151,6 +152,7 @@ const mutations = new graphql_1.GraphQLObjectType({
                         filename,
                         artstation,
                         location,
+                        bluesky,
                     });
                     return await artist.save();
                 }
