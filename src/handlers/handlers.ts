@@ -120,6 +120,7 @@ const mutations = new GraphQLObjectType({
                 filename: { type: GraphQLString },
                 artstation: { type: GraphQLString },
                 location: { type: GraphQLString },
+                bluesky: { type: GraphQLString },
             },
             async resolve(
                 parent,
@@ -141,6 +142,7 @@ const mutations = new GraphQLObjectType({
                     filename,
                     artstation,
                     location,
+                    bluesky,
                 }
                 ) {
                 let existingArtist:DocumentType;
@@ -166,6 +168,7 @@ const mutations = new GraphQLObjectType({
                             filename,
                             artstation,
                             location,
+                            bluesky,
                         });
                     return await artist.save();
                 } catch (err) {

@@ -53,6 +53,9 @@ const artistSchema:Schema = new Schema({
     },
     location: {
         type: String
+    },
+    bluesky: {
+        type: String
     }
 });
 
