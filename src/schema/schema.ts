@@ -21,6 +21,7 @@ export const ArtistType = new GraphQLObjectType({
         filename: { type: GraphQLString },
         artstation: { type: GraphQLString },
         location: { type: GraphQLString },
+        bluesky: { type: GraphQLString },
     }),
 });
 
