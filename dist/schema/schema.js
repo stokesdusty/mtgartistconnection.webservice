@@ -23,6 +23,7 @@ exports.ArtistType = new graphql_1.GraphQLObjectType({
         filename: { type: graphql_1.GraphQLString },
         artstation: { type: graphql_1.GraphQLString },
         location: { type: graphql_1.GraphQLString },
+        bluesky: { type: graphql_1.GraphQLString },
     }),
 });
 exports.UserType = new graphql_1.GraphQLObjectType({

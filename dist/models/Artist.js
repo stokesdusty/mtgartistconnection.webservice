@@ -54,6 +54,9 @@ const artistSchema = new mongoose_1.Schema({
     },
     location: {
         type: String
+    },
+    bluesky: {
+        type: String
     }
 });
 exports.default = (0, mongoose_1.model)("Artist", artistSchema);
