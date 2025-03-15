@@ -51,39 +51,6 @@ const RootQuery = new GraphQLObjectType({
                 return await MapArtistToEvent.find({ eventId: eventId }).sort({artistName: 1}).exec();
             },
         },
-        signingEventsWithArtists: {
-            type: new GraphQLList(new GraphQLObjectType({
-                name: 'SigningEventWithArtists',
-                fields: () => ({
-                    id: { type: GraphQLID },
-                    name: { type: GraphQLString },
-                    startDate: { type: GraphQLString },
-                    endDate: { type: GraphQLString },
-                    city: { type: GraphQLString },
-                    mapArtistToEventByEventId: {
-                        type: new GraphQLList(new GraphQLObjectType({
-                            name: 'ArtistInEvent',
-                            fields: () => ({
-                                artistName: { type: GraphQLString}
-                            })
-                        })),
-                        async resolve(parent) {
-                            return await MapArtistToEvent.find({ eventId: parent.id }).select("artistName -_id");
-                        }
-                    }
-                })
-            })),
-            async resolve() {
-                const events = await SigningEvent.find();
-                return events.map(event => ({
-                  id: event._id,
-                  name: event.name,
-                  startDate: event.startDate,
-                  endDate: event.endDate,
-                  city: event.city,
-                }));
-            }
-        }
     },
 });
 
@@ -142,7 +109,7 @@ const mutations = new GraphQLObjectType({
                 facebook: { type: GraphQLString },
                 haveSignature: { type: GraphQLString },
                 instagram: { type: GraphQLString },
-                patreon: { type: GraphQLString },
+                patreon: { type: GraphQLString }, 
                 signing: { type: GraphQLString },
                 signingComment: { type: GraphQLString },
                 twitter: { type: GraphQLString },
