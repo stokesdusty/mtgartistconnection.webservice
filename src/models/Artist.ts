@@ -56,6 +56,9 @@ const artistSchema:Schema = new Schema({
     },
     bluesky: {
         type: String
+    },
+    omalink: {
+        type: String
     }
 });
 
