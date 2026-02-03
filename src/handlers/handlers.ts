@@ -242,13 +242,14 @@ const mutations = new GraphQLObjectType({
                 city: { type: GraphQLNonNull(GraphQLString) },
                 startDate: { type: GraphQLNonNull(GraphQLString) },
                 endDate: { type: GraphQLNonNull(GraphQLString) },
+                url: { type: GraphQLString },
             },
-            async resolve(parent, {name, city, startDate, endDate}) {
+            async resolve(parent, {name, city, startDate, endDate, url}) {
                 let existingEvent:DocumentType;
                 try {
                     existingEvent = await SigningEvent.findOne({ name });
                     if(existingEvent) return new Error("Event already exists");
-                    const newSigningEvent = new SigningEvent({name, city, startDate, endDate});
+                    const newSigningEvent = new SigningEvent({name, city, startDate, endDate, url});
                     return await newSigningEvent.save();
                 } catch (err) {
                     return new Error("Add Signing Event Failed. Try again.");
