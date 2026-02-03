@@ -16,6 +16,11 @@ const signingEventSchema:Schema = new Schema({
     endDate: {
         type: String,
         required: true
+    },
+    url: {
+        type: String,
+        required: false,
+        default: null
     }
 });
 

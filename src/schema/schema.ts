@@ -44,6 +44,7 @@ export const SigningEventType = new GraphQLObjectType({
         city: { type: GraphQLNonNull(GraphQLString) },
         startDate: { type: GraphQLNonNull(GraphQLString) },
         endDate: { type: GraphQLNonNull(GraphQLString) },
+        url: { type: GraphQLString },
     }),
 });
 
