@@ -22,7 +22,8 @@ export const ArtistType = new GraphQLObjectType({
         artstation: { type: GraphQLString },
         location: { type: GraphQLString },
         bluesky: { type: GraphQLString },
-        omalink: { type: GraphQLString }
+        omalink: { type: GraphQLString },
+        inprnt: { type: GraphQLString }
     }),
 });
 
