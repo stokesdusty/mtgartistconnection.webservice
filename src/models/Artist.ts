@@ -59,6 +59,9 @@ const artistSchema:Schema = new Schema({
     },
     omalink: {
         type: String
+    },
+    inprnt: {
+        type: String
     }
 });
 
