@@ -1,4 +1,4 @@
-import { GraphQLID, GraphQLObjectType, GraphQLString, GraphQLNonNull, GraphQLScalarType } from "graphql";
+import { GraphQLID, GraphQLObjectType, GraphQLString, GraphQLNonNull, GraphQLScalarType, GraphQLInt } from "graphql";
 
 export const ArtistType = new GraphQLObjectType({
     name: "ArtistType",
@@ -55,5 +55,19 @@ export const MapArtistToEventType = new GraphQLObjectType({
         id: { type: GraphQLNonNull(GraphQLID) },
         artistName: { type: GraphQLNonNull(GraphQLString) },
         eventId: { type: GraphQLNonNull(GraphQLString) },
+    }),
+});
+
+export const CardPriceType = new GraphQLObjectType({
+    name: "CardPriceType",
+    fields: () => ({
+        id: { type: GraphQLNonNull(GraphQLID) },
+        name: { type: GraphQLNonNull(GraphQLString) },
+        set_code: { type: GraphQLNonNull(GraphQLString) },
+        number: { type: GraphQLString },
+        scryfall_id: { type: GraphQLString },
+        price_cents: { type: GraphQLInt },
+        price_cents_foil: { type: GraphQLInt },
+        url: { type: GraphQLString },
     }),
 });
