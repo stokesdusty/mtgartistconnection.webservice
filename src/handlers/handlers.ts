@@ -1,13 +1,22 @@
-import { GraphQLID, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, MapArtistToEventType, SigningEventType, UserType } from "../schema/schema";
+import { GraphQLID, GraphQLInputObjectType, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
+import { ArtistType, CardPriceType, MapArtistToEventType, SigningEventType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
 import SigningEvent from "../models/SigningEvent";
 import { hashSync } from "bcrypt-nodejs";
 import MapArtistToEvent from "../models/MapArtistToEvent";
+import CardPrice from "../models/CardPrice";
 
 type DocumentType = Document<any, any, any>;
+
+const CardLookupInput = new GraphQLInputObjectType({
+    name: "CardLookupInput",
+    fields: {
+        set_code: { type: GraphQLNonNull(GraphQLString) },
+        number: { type: GraphQLNonNull(GraphQLString) },
+    },
+});
 
 const RootQuery = new GraphQLObjectType({
     name: "RootQuery",
@@ -49,6 +58,18 @@ const RootQuery = new GraphQLObjectType({
             args: { eventId: { type: GraphQLNonNull(GraphQLString)}},
             async resolve(parent, { eventId }) {
                 return await MapArtistToEvent.find({ eventId: eventId }).sort({artistName: 1}).exec();
+            },
+        },
+        cardPricesByCards: {
+            type: GraphQLList(CardPriceType),
+            args: { cards: { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(CardLookupInput))) }},
+            async resolve(parent, { cards }) {
+                const queries = cards.map((card: { set_code: string; number: string }) => ({
+                    set_code: card.set_code.toUpperCase(),
+                    number: card.number,
+                }));
+
+                return await CardPrice.find({ $or: queries }).exec();
             },
         },
     },
