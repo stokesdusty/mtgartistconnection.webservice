@@ -17,6 +17,11 @@ const signingEventSchema = new mongoose_1.Schema({
     endDate: {
         type: String,
         required: true
+    },
+    url: {
+        type: String,
+        required: false,
+        default: null
     }
 });
 exports.default = (0, mongoose_1.model)("SigningEvent", signingEventSchema);
