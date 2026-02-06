@@ -57,6 +57,12 @@ const artistSchema = new mongoose_1.Schema({
     },
     bluesky: {
         type: String
+    },
+    omalink: {
+        type: String
+    },
+    inprnt: {
+        type: String
     }
 });
 exports.default = (0, mongoose_1.model)("Artist", artistSchema);

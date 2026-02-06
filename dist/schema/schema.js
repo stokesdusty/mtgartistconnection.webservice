@@ -24,6 +24,8 @@ exports.ArtistType = new graphql_1.GraphQLObjectType({
         artstation: { type: graphql_1.GraphQLString },
         location: { type: graphql_1.GraphQLString },
         bluesky: { type: graphql_1.GraphQLString },
+        omalink: { type: graphql_1.GraphQLString },
+        inprnt: { type: graphql_1.GraphQLString }
     }),
 });
 exports.UserType = new graphql_1.GraphQLObjectType({
@@ -43,6 +45,7 @@ exports.SigningEventType = new graphql_1.GraphQLObjectType({
         city: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
         startDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
         endDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        url: { type: graphql_1.GraphQLString },
     }),
 });
 exports.MapArtistToEventType = new graphql_1.GraphQLObjectType({

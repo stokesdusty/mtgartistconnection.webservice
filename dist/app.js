@@ -9,6 +9,7 @@ const connection_1 = require("./utils/connection");
 const express_graphql_1 = require("express-graphql");
 const handlers_1 = __importDefault(require("./handlers/handlers"));
 const cors_1 = __importDefault(require("cors"));
+const priceSyncService_1 = require("./services/priceSyncService");
 // Dotenv config
 (0, dotenv_1.config)();
 const app = (0, express_1.default)();
@@ -16,6 +17,8 @@ app.use((0, cors_1.default)());
 app.use("/graphql", (0, express_graphql_1.graphqlHTTP)({ schema: handlers_1.default, graphiql: true }));
 (0, connection_1.connectToDatabase)()
     .then(() => {
+    // Start the daily price sync scheduler
+    (0, priceSyncService_1.startPriceSyncScheduler)();
     return app.listen(process.env.PORT, () => console.log(`Server Open on Port ${process.env.PORT}`));
 })
     .catch(err => console.log(err));

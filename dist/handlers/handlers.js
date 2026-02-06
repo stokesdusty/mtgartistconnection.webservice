@@ -71,13 +71,13 @@ const mutations = new graphql_1.GraphQLObjectType({
                 try {
                     existingUser = await User_1.default.findOne({ email });
                     if (existingUser)
-                        throw new Error("User already exists");
+                        return new Error("User already exists");
                     const encryptedPassword = (0, bcrypt_nodejs_1.hashSync)(password);
                     const user = new User_1.default({ name, email, password: encryptedPassword });
                     return await user.save();
                 }
                 catch (err) {
-                    throw new Error("User Signup Failed. Try again.");
+                    return new Error("User Signup Failed. Try again.");
                 }
             },
         },
@@ -93,15 +93,15 @@ const mutations = new graphql_1.GraphQLObjectType({
                 try {
                     existingUser = await User_1.default.findOne({ email });
                     if (!existingUser)
-                        throw new Error("No User registered with this email");
+                        return new Error("No User registered with this email");
                     // @ts-ignore
-                    const decryptedPassword = (0, bcrypt_nodejs_1.compareSync)(password, existingUser?.password);
+                    const decryptedPassword = compareSync(password, existingUser?.password);
                     if (!decryptedPassword)
-                        throw new Error("Incorrect Password");
+                        return new Error("Incorrect Password");
                     return existingUser;
                 }
                 catch (err) {
-                    throw err;
+                    return new Error(err);
                 }
             },
         },
@@ -127,13 +127,15 @@ const mutations = new graphql_1.GraphQLObjectType({
                 artstation: { type: graphql_1.GraphQLString },
                 location: { type: graphql_1.GraphQLString },
                 bluesky: { type: graphql_1.GraphQLString },
+                omalink: { type: graphql_1.GraphQLString },
+                inprnt: { type: graphql_1.GraphQLString }
             },
-            async resolve(parent, { name, email, artistProofs, facebook, haveSignature, instagram, patreon, signing, signingComment, twitter, url, youtube, mountainmage, markssignatureservice, filename, artstation, location, bluesky, }) {
+            async resolve(parent, { name, email, artistProofs, facebook, haveSignature, instagram, patreon, signing, signingComment, twitter, url, youtube, mountainmage, markssignatureservice, filename, artstation, location, bluesky, omalink, inprnt }) {
                 let existingArtist;
                 try {
                     existingArtist = await Artist_1.default.findOne({ name });
                     if (existingArtist)
-                        throw new Error("Artist already exists");
+                        return new Error("Artist already exists");
                     const artist = new Artist_1.default({
                         name,
                         email,
@@ -153,11 +155,13 @@ const mutations = new graphql_1.GraphQLObjectType({
                         artstation,
                         location,
                         bluesky,
+                        omalink,
+                        inprnt
                     });
                     return await artist.save();
                 }
                 catch (err) {
-                    throw new Error("Artist Signup Failed. Try again.");
+                    return new Error("Artist Signup Failed. Try again.");
                 }
             },
         },
@@ -174,12 +178,12 @@ const mutations = new graphql_1.GraphQLObjectType({
                     session.startTransaction({ session });
                     artist = await Artist_1.default.findById(id);
                     if (!artist)
-                        throw new Error("Artist not found");
+                        return new Error("Artist not found");
                     // @ts-ignore
                     return await Artist_1.default.findByIdAndDelete(artist.id);
                 }
                 catch (err) {
-                    throw err;
+                    return new Error(err);
                 }
                 finally {
                     await session.commitTransaction();
@@ -208,11 +212,11 @@ const mutations = new graphql_1.GraphQLObjectType({
                     session.startTransaction({ session });
                     artist = await Artist_1.default.findById(id);
                     if (!artist)
-                        throw new Error("Artist not found");
+                        return new Error("Artist not found");
                     return await Artist_1.default.findByIdAndUpdate({ _id: artist.id }, updateValue);
                 }
                 catch (err) {
-                    throw err;
+                    return new Error(err);
                 }
                 finally {
                     await session.commitTransaction();
@@ -227,18 +231,19 @@ const mutations = new graphql_1.GraphQLObjectType({
                 city: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
                 startDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
                 endDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                url: { type: graphql_1.GraphQLString },
             },
-            async resolve(parent, { name, city, startDate, endDate }) {
+            async resolve(parent, { name, city, startDate, endDate, url }) {
                 let existingEvent;
                 try {
                     existingEvent = await SigningEvent_1.default.findOne({ name });
                     if (existingEvent)
-                        throw new Error("Event already exists");
-                    const newSigningEvent = new SigningEvent_1.default({ name, city, startDate, endDate });
+                        return new Error("Event already exists");
+                    const newSigningEvent = new SigningEvent_1.default({ name, city, startDate, endDate, url });
                     return await newSigningEvent.save();
                 }
                 catch (err) {
-                    throw new Error("Add Signing Event Failed. Try again.");
+                    return new Error("Add Signing Event Failed. Try again.");
                 }
             },
         },
@@ -254,12 +259,12 @@ const mutations = new graphql_1.GraphQLObjectType({
                 try {
                     existingArtistInEvent = await MapArtistToEvent_1.default.findOne({ artistName, eventId });
                     if (existingArtistInEvent)
-                        throw new Error("Artist already exists in event");
+                        return new Error("Artist already exists in event");
                     const newArtistInEvent = new MapArtistToEvent_1.default({ artistName, eventId });
                     return await newArtistInEvent.save();
                 }
                 catch (err) {
-                    throw new Error("Add Artist to Event Failed. Try again.");
+                    return new Error("Add Artist to Event Failed. Try again.");
                 }
             },
         },

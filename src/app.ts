@@ -4,6 +4,7 @@ import { connectToDatabase } from './utils/connection';
 import { graphqlHTTP } from 'express-graphql';
 import schema from "./handlers/handlers";
 import cors from "cors";
+import { startPriceSyncScheduler } from './services/priceSyncService';
 
 // Dotenv config
 config();
@@ -15,7 +16,10 @@ app.use("/graphql", graphqlHTTP({ schema: schema, graphiql: true}));
 
 connectToDatabase()
     .then(() => {
-        return app.listen(process.env.PORT, 
+        // Start the daily price sync scheduler
+        startPriceSyncScheduler();
+
+        return app.listen(process.env.PORT,
         () => console.log(`Server Open on Port ${process.env.PORT}`)
     );
 })
