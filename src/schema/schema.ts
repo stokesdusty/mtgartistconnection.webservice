@@ -67,6 +67,8 @@ export const CardPriceType = new GraphQLObjectType({
         number: { type: GraphQLString },
         scryfall_id: { type: GraphQLString },
         price_cents: { type: GraphQLInt },
+        price_cents_lp_plus: { type: GraphQLInt },
+        price_cents_nm: { type: GraphQLInt },
         price_cents_foil: { type: GraphQLInt },
         url: { type: GraphQLString },
     }),
