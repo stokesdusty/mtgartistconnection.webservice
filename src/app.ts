@@ -19,7 +19,8 @@ app.use("/graphql", graphqlHTTP((req) => ({
     graphiql: true,
     context: {
         isAuthenticated: (req as any).isAuthenticated,
-        userId: (req as any).userId
+        userId: (req as any).userId,
+        userRole: (req as any).userRole
     }
 })));
 

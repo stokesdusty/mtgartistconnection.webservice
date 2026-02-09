@@ -7,7 +7,7 @@ import SigningEvent from "../models/SigningEvent";
 import { hashSync, compareSync } from "bcrypt-nodejs";
 import MapArtistToEvent from "../models/MapArtistToEvent";
 import CardPrice from "../models/CardPrice";
-import { generateToken, requireAuth } from "../middleware/auth";
+import { generateToken, requireAuth, requireAdmin } from "../middleware/auth";
 
 type DocumentType = Document<any, any, any>;
 
@@ -93,11 +93,13 @@ const mutations = new GraphQLObjectType({
                     existingUser = await User.findOne({ email });
                     if(existingUser) throw new Error("User already exists");
                     const encryptedPassword = hashSync(password);
+                    // Default role is 'user', will be set by model default
                     const user = new User({name, email, password: encryptedPassword});
                     const savedUser = await user.save();
 
-                    // Generate JWT token
-                    const token = generateToken(savedUser._id.toString());
+                    // Generate JWT token with user role
+                    // @ts-ignore
+                    const token = generateToken(savedUser._id.toString(), savedUser.role);
 
                     return {
                         token,
@@ -124,8 +126,9 @@ const mutations = new GraphQLObjectType({
                     const decryptedPassword = compareSync(password, existingUser?.password);
                     if(!decryptedPassword) throw new Error("Incorrect Password");
 
-                    // Generate JWT token
-                    const token = generateToken(existingUser._id.toString());
+                    // Generate JWT token with user role
+                    // @ts-ignore
+                    const token = generateToken(existingUser._id.toString(), existingUser.role);
 
                     return {
                         token,
@@ -187,8 +190,8 @@ const mutations = new GraphQLObjectType({
                 },
                 context
                 ) {
-                // Require authentication
-                requireAuth(context.isAuthenticated);
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
 
                 let existingArtist:DocumentType;
                 try {
@@ -230,8 +233,8 @@ const mutations = new GraphQLObjectType({
                 id: { type: GraphQLNonNull(GraphQLID) },
             },
             async resolve(parent, { id }, context) {
-                // Require authentication
-                requireAuth(context.isAuthenticated);
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
 
                 const session = await startSession();
                 let artist:DocumentType;
@@ -251,8 +254,8 @@ const mutations = new GraphQLObjectType({
         deleteAllArtists: {
             type: GraphQLList(ArtistType),
             async resolve(parent, args, context) {
-                // Require authentication
-                requireAuth(context.isAuthenticated);
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
 
                 return await Artist.deleteMany({});
             }
@@ -265,8 +268,8 @@ const mutations = new GraphQLObjectType({
                 valueToSet: { type: GraphQLNonNull(GraphQLString) }
             },
             async resolve(parent, { id, fieldName, valueToSet }, context){
-                // Require authentication
-                requireAuth(context.isAuthenticated);
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
 
                 const session = await startSession();
                 let artist:DocumentType;
@@ -298,8 +301,8 @@ const mutations = new GraphQLObjectType({
                 url: { type: GraphQLString },
             },
             async resolve(parent, {name, city, startDate, endDate, url}, context) {
-                // Require authentication
-                requireAuth(context.isAuthenticated);
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
 
                 let existingEvent:DocumentType;
                 try {
@@ -320,8 +323,8 @@ const mutations = new GraphQLObjectType({
                 eventId: { type: GraphQLNonNull(GraphQLString) },
             },
             async resolve(parent, {artistName, eventId}, context) {
-                // Require authentication
-                requireAuth(context.isAuthenticated);
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
 
                 let existingArtistInEvent:DocumentType;
                 try {

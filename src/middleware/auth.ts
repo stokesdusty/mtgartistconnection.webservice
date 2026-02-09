@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
   userId?: string;
+  userRole?: string;
   isAuthenticated?: boolean;
 }
 
@@ -23,8 +24,9 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
   }
 
   try {
-    const decodedToken = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; role: string };
     req.userId = decodedToken.userId;
+    req.userRole = decodedToken.role;
     req.isAuthenticated = true;
     next();
   } catch (err) {
@@ -33,9 +35,9 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
   }
 };
 
-export const generateToken = (userId: string): string => {
+export const generateToken = (userId: string, role: string): string => {
   return jwt.sign(
-    { userId },
+    { userId, role },
     process.env.JWT_SECRET!,
     { expiresIn: '7d' } // Token expires in 7 days
   );
@@ -44,5 +46,12 @@ export const generateToken = (userId: string): string => {
 export const requireAuth = (isAuthenticated?: boolean) => {
   if (!isAuthenticated) {
     throw new Error('Authentication required. Please log in.');
+  }
+};
+
+export const requireAdmin = (isAuthenticated?: boolean, userRole?: string) => {
+  requireAuth(isAuthenticated);
+  if (userRole !== 'admin') {
+    throw new Error('Admin privileges required. You do not have permission to perform this action.');
   }
 };
