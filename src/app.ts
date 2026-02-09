@@ -5,6 +5,7 @@ import { graphqlHTTP } from 'express-graphql';
 import schema from "./handlers/handlers";
 import cors from "cors";
 import { startPriceSyncScheduler } from './services/priceSyncService';
+import { authMiddleware } from './middleware/auth';
 
 // Dotenv config
 config();
@@ -12,7 +13,15 @@ config();
 const app = express();
 
 app.use(cors());
-app.use("/graphql", graphqlHTTP({ schema: schema, graphiql: true}));
+app.use(authMiddleware);
+app.use("/graphql", graphqlHTTP((req) => ({
+    schema: schema,
+    graphiql: true,
+    context: {
+        isAuthenticated: (req as any).isAuthenticated,
+        userId: (req as any).userId
+    }
+})));
 
 connectToDatabase()
     .then(() => {

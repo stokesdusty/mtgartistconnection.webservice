@@ -37,6 +37,14 @@ export const UserType = new GraphQLObjectType({
     }),
 });
 
+export const AuthResponseType = new GraphQLObjectType({
+    name: "AuthResponseType",
+    fields: () => ({
+        token: { type: GraphQLNonNull(GraphQLString) },
+        user: { type: GraphQLNonNull(UserType) },
+    }),
+});
+
 export const SigningEventType = new GraphQLObjectType({
     name: "SigningEventType",
     fields: () => ({

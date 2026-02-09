@@ -1,5 +1,5 @@
 import { GraphQLID, GraphQLInputObjectType, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, CardPriceType, MapArtistToEventType, SigningEventType, UserType } from "../schema/schema";
+import { ArtistType, AuthResponseType, CardPriceType, MapArtistToEventType, SigningEventType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
@@ -7,6 +7,7 @@ import SigningEvent from "../models/SigningEvent";
 import { hashSync, compareSync } from "bcrypt-nodejs";
 import MapArtistToEvent from "../models/MapArtistToEvent";
 import CardPrice from "../models/CardPrice";
+import { generateToken, requireAuth } from "../middleware/auth";
 
 type DocumentType = Document<any, any, any>;
 
@@ -80,7 +81,7 @@ const mutations = new GraphQLObjectType({
     fields: {
          // user signup
          signup: {
-            type: UserType,
+            type: AuthResponseType,
             args: {
                 name: { type: GraphQLNonNull(GraphQLString) },
                 email: { type: GraphQLNonNull(GraphQLString) },
@@ -90,18 +91,26 @@ const mutations = new GraphQLObjectType({
                 let existingUser:DocumentType;
                 try {
                     existingUser = await User.findOne({ email });
-                    if(existingUser) return new Error("User already exists");
+                    if(existingUser) throw new Error("User already exists");
                     const encryptedPassword = hashSync(password);
                     const user = new User({name, email, password: encryptedPassword});
-                    return await user.save();
+                    const savedUser = await user.save();
+
+                    // Generate JWT token
+                    const token = generateToken(savedUser._id.toString());
+
+                    return {
+                        token,
+                        user: savedUser
+                    };
                 } catch (err) {
-                    return new Error("User Signup Failed. Try again.");
+                    throw new Error("User Signup Failed. Try again.");
                 }
             },
         },
         // user login
         login: {
-            type: UserType,
+            type: AuthResponseType,
             args: {
                 email: { type: GraphQLNonNull(GraphQLString) },
                 password: { type: GraphQLNonNull(GraphQLString) },
@@ -110,13 +119,20 @@ const mutations = new GraphQLObjectType({
                 let existingUser:DocumentType;
                 try {
                     existingUser = await User.findOne({email});
-                    if (!existingUser) return new Error("No User registered with this email");
+                    if (!existingUser) throw new Error("No User registered with this email");
                     // @ts-ignore
                     const decryptedPassword = compareSync(password, existingUser?.password);
-                    if(!decryptedPassword) return new Error("Incorrect Password");
-                    return existingUser;
+                    if(!decryptedPassword) throw new Error("Incorrect Password");
+
+                    // Generate JWT token
+                    const token = generateToken(existingUser._id.toString());
+
+                    return {
+                        token,
+                        user: existingUser
+                    };
                 } catch (err) {
-                    return new Error(err);
+                    throw new Error(err);
                 }
             },
         },
