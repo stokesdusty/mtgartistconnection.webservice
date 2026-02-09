@@ -13,7 +13,9 @@ config();
 const app = express();
 
 // Configure CORS with whitelist of allowed origins
-const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [];
+const allowedOrigins = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) 
+    : [];
 app.use(cors({
     origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps, Postman, or server-to-server)
@@ -23,6 +25,7 @@ app.use(cors({
         if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.log(`CORS Blocked Origin: ${origin}`); // Log the blocked origin for debugging
             callback(new Error('Not allowed by CORS'));
         }
     },
