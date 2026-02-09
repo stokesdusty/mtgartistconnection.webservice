@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MapArtistToEventType = exports.SigningEventType = exports.UserType = exports.ArtistType = void 0;
+exports.CardPriceType = exports.MapArtistToEventType = exports.SigningEventType = exports.AuthResponseType = exports.UserType = exports.ArtistType = void 0;
 const graphql_1 = require("graphql");
 exports.ArtistType = new graphql_1.GraphQLObjectType({
     name: "ArtistType",
@@ -34,7 +34,14 @@ exports.UserType = new graphql_1.GraphQLObjectType({
         id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
         name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
         email: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
-        password: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        role: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+    }),
+});
+exports.AuthResponseType = new graphql_1.GraphQLObjectType({
+    name: "AuthResponseType",
+    fields: () => ({
+        token: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        user: { type: (0, graphql_1.GraphQLNonNull)(exports.UserType) },
     }),
 });
 exports.SigningEventType = new graphql_1.GraphQLObjectType({
@@ -54,6 +61,21 @@ exports.MapArtistToEventType = new graphql_1.GraphQLObjectType({
         id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
         artistName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
         eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+    }),
+});
+exports.CardPriceType = new graphql_1.GraphQLObjectType({
+    name: "CardPriceType",
+    fields: () => ({
+        id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+        name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        set_code: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        number: { type: graphql_1.GraphQLString },
+        scryfall_id: { type: graphql_1.GraphQLString },
+        price_cents: { type: graphql_1.GraphQLInt },
+        price_cents_lp_plus: { type: graphql_1.GraphQLInt },
+        price_cents_nm: { type: graphql_1.GraphQLInt },
+        price_cents_foil: { type: graphql_1.GraphQLInt },
+        url: { type: graphql_1.GraphQLString },
     }),
 });
 //# sourceMappingURL=schema.js.map

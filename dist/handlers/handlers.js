@@ -11,6 +11,15 @@ const User_1 = __importDefault(require("../models/User"));
 const SigningEvent_1 = __importDefault(require("../models/SigningEvent"));
 const bcrypt_nodejs_1 = require("bcrypt-nodejs");
 const MapArtistToEvent_1 = __importDefault(require("../models/MapArtistToEvent"));
+const CardPrice_1 = __importDefault(require("../models/CardPrice"));
+const auth_1 = require("../middleware/auth");
+const CardLookupInput = new graphql_1.GraphQLInputObjectType({
+    name: "CardLookupInput",
+    fields: {
+        set_code: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        number: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+    },
+});
 const RootQuery = new graphql_1.GraphQLObjectType({
     name: "RootQuery",
     fields: {
@@ -53,6 +62,17 @@ const RootQuery = new graphql_1.GraphQLObjectType({
                 return await MapArtistToEvent_1.default.find({ eventId: eventId }).sort({ artistName: 1 }).exec();
             },
         },
+        cardPricesByCards: {
+            type: (0, graphql_1.GraphQLList)(schema_1.CardPriceType),
+            args: { cards: { type: (0, graphql_1.GraphQLNonNull)((0, graphql_1.GraphQLList)((0, graphql_1.GraphQLNonNull)(CardLookupInput))) } },
+            async resolve(parent, { cards }) {
+                const queries = cards.map((card) => ({
+                    set_code: card.set_code.toUpperCase(),
+                    number: card.number,
+                }));
+                return await CardPrice_1.default.find({ $or: queries }).exec();
+            },
+        },
     },
 });
 const mutations = new graphql_1.GraphQLObjectType({
@@ -60,7 +80,7 @@ const mutations = new graphql_1.GraphQLObjectType({
     fields: {
         // user signup
         signup: {
-            type: schema_1.UserType,
+            type: schema_1.AuthResponseType,
             args: {
                 name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
                 email: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
@@ -71,19 +91,27 @@ const mutations = new graphql_1.GraphQLObjectType({
                 try {
                     existingUser = await User_1.default.findOne({ email });
                     if (existingUser)
-                        return new Error("User already exists");
+                        throw new Error("User already exists");
                     const encryptedPassword = (0, bcrypt_nodejs_1.hashSync)(password);
+                    // Default role is 'user', will be set by model default
                     const user = new User_1.default({ name, email, password: encryptedPassword });
-                    return await user.save();
+                    const savedUser = await user.save();
+                    // Generate JWT token with user role
+                    // @ts-ignore
+                    const token = (0, auth_1.generateToken)(savedUser._id.toString(), savedUser.role);
+                    return {
+                        token,
+                        user: savedUser
+                    };
                 }
                 catch (err) {
-                    return new Error("User Signup Failed. Try again.");
+                    throw new Error("User Signup Failed. Try again.");
                 }
             },
         },
         // user login
         login: {
-            type: schema_1.UserType,
+            type: schema_1.AuthResponseType,
             args: {
                 email: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
                 password: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
@@ -93,15 +121,21 @@ const mutations = new graphql_1.GraphQLObjectType({
                 try {
                     existingUser = await User_1.default.findOne({ email });
                     if (!existingUser)
-                        return new Error("No User registered with this email");
+                        throw new Error("No User registered with this email");
                     // @ts-ignore
-                    const decryptedPassword = compareSync(password, existingUser?.password);
+                    const decryptedPassword = (0, bcrypt_nodejs_1.compareSync)(password, existingUser?.password);
                     if (!decryptedPassword)
-                        return new Error("Incorrect Password");
-                    return existingUser;
+                        throw new Error("Incorrect Password");
+                    // Generate JWT token with user role
+                    // @ts-ignore
+                    const token = (0, auth_1.generateToken)(existingUser._id.toString(), existingUser.role);
+                    return {
+                        token,
+                        user: existingUser
+                    };
                 }
                 catch (err) {
-                    return new Error(err);
+                    throw new Error(err);
                 }
             },
         },
@@ -130,12 +164,14 @@ const mutations = new graphql_1.GraphQLObjectType({
                 omalink: { type: graphql_1.GraphQLString },
                 inprnt: { type: graphql_1.GraphQLString }
             },
-            async resolve(parent, { name, email, artistProofs, facebook, haveSignature, instagram, patreon, signing, signingComment, twitter, url, youtube, mountainmage, markssignatureservice, filename, artstation, location, bluesky, omalink, inprnt }) {
+            async resolve(parent, { name, email, artistProofs, facebook, haveSignature, instagram, patreon, signing, signingComment, twitter, url, youtube, mountainmage, markssignatureservice, filename, artstation, location, bluesky, omalink, inprnt }, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
                 let existingArtist;
                 try {
                     existingArtist = await Artist_1.default.findOne({ name });
                     if (existingArtist)
-                        return new Error("Artist already exists");
+                        throw new Error("Artist already exists");
                     const artist = new Artist_1.default({
                         name,
                         email,
@@ -161,7 +197,7 @@ const mutations = new graphql_1.GraphQLObjectType({
                     return await artist.save();
                 }
                 catch (err) {
-                    return new Error("Artist Signup Failed. Try again.");
+                    throw new Error("Artist Signup Failed. Try again.");
                 }
             },
         },
@@ -171,19 +207,21 @@ const mutations = new graphql_1.GraphQLObjectType({
             args: {
                 id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
             },
-            async resolve(parent, { id }) {
+            async resolve(parent, { id }, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
                 const session = await (0, mongoose_1.startSession)();
                 let artist;
                 try {
                     session.startTransaction({ session });
                     artist = await Artist_1.default.findById(id);
                     if (!artist)
-                        return new Error("Artist not found");
+                        throw new Error("Artist not found");
                     // @ts-ignore
                     return await Artist_1.default.findByIdAndDelete(artist.id);
                 }
                 catch (err) {
-                    return new Error(err);
+                    throw new Error(err);
                 }
                 finally {
                     await session.commitTransaction();
@@ -192,7 +230,9 @@ const mutations = new graphql_1.GraphQLObjectType({
         },
         deleteAllArtists: {
             type: (0, graphql_1.GraphQLList)(schema_1.ArtistType),
-            async resolve(parent) {
+            async resolve(parent, args, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
                 return await Artist_1.default.deleteMany({});
             }
         },
@@ -203,7 +243,9 @@ const mutations = new graphql_1.GraphQLObjectType({
                 fieldName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
                 valueToSet: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) }
             },
-            async resolve(parent, { id, fieldName, valueToSet }) {
+            async resolve(parent, { id, fieldName, valueToSet }, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
                 const session = await (0, mongoose_1.startSession)();
                 let artist;
                 let updateValue = {};
@@ -212,11 +254,11 @@ const mutations = new graphql_1.GraphQLObjectType({
                     session.startTransaction({ session });
                     artist = await Artist_1.default.findById(id);
                     if (!artist)
-                        return new Error("Artist not found");
+                        throw new Error("Artist not found");
                     return await Artist_1.default.findByIdAndUpdate({ _id: artist.id }, updateValue);
                 }
                 catch (err) {
-                    return new Error(err);
+                    throw new Error(err);
                 }
                 finally {
                     await session.commitTransaction();
@@ -233,12 +275,14 @@ const mutations = new graphql_1.GraphQLObjectType({
                 endDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
                 url: { type: graphql_1.GraphQLString },
             },
-            async resolve(parent, { name, city, startDate, endDate, url }) {
+            async resolve(parent, { name, city, startDate, endDate, url }, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
                 let existingEvent;
                 try {
                     existingEvent = await SigningEvent_1.default.findOne({ name });
                     if (existingEvent)
-                        return new Error("Event already exists");
+                        throw new Error("Event already exists");
                     const newSigningEvent = new SigningEvent_1.default({ name, city, startDate, endDate, url });
                     return await newSigningEvent.save();
                 }
@@ -254,17 +298,19 @@ const mutations = new graphql_1.GraphQLObjectType({
                 artistName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
                 eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
             },
-            async resolve(parent, { artistName, eventId }) {
+            async resolve(parent, { artistName, eventId }, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
                 let existingArtistInEvent;
                 try {
                     existingArtistInEvent = await MapArtistToEvent_1.default.findOne({ artistName, eventId });
                     if (existingArtistInEvent)
-                        return new Error("Artist already exists in event");
+                        throw new Error("Artist already exists in event");
                     const newArtistInEvent = new MapArtistToEvent_1.default({ artistName, eventId });
                     return await newArtistInEvent.save();
                 }
                 catch (err) {
-                    return new Error("Add Artist to Event Failed. Try again.");
+                    throw new Error("Add Artist to Event Failed. Try again.");
                 }
             },
         },
