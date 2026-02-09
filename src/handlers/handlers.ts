@@ -4,7 +4,7 @@ import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
 import SigningEvent from "../models/SigningEvent";
-import { hashSync } from "bcrypt-nodejs";
+import { hashSync, compareSync } from "bcrypt-nodejs";
 import MapArtistToEvent from "../models/MapArtistToEvent";
 import CardPrice from "../models/CardPrice";
 
