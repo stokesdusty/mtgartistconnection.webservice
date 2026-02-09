@@ -12,7 +12,22 @@ config();
 
 const app = express();
 
-app.use(cors());
+// Configure CORS with whitelist of allowed origins
+const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [];
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, Postman, or server-to-server)
+        if (!origin) return callback(null, true);
+
+        // Check if the origin is in the whitelist
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true, // Allow cookies/auth headers
+}));
 app.use(authMiddleware);
 app.use("/graphql", graphqlHTTP((req) => ({
     schema: schema,
