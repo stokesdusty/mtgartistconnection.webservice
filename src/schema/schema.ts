@@ -33,7 +33,6 @@ export const UserType = new GraphQLObjectType({
         id: { type: GraphQLNonNull(GraphQLID) },
         name: { type: GraphQLNonNull(GraphQLString) },
         email: { type: GraphQLNonNull(GraphQLString) },
-        password: { type: GraphQLNonNull(GraphQLString) },
         role: { type: GraphQLNonNull(GraphQLString) },
     }),
 });
