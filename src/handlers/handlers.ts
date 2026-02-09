@@ -449,6 +449,114 @@ const mutations = new GraphQLObjectType({
                 }
             },
         },
+        // follow artist
+        followArtist: {
+            type: MutationResponseType,
+            args: {
+                artistName: { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(parent, { artistName }, context) {
+                // Require authentication
+                requireAuth(context.isAuthenticated);
+
+                try {
+                    const user = await User.findById(context.userId);
+                    if (!user) {
+                        return {
+                            success: false,
+                            message: "User not found"
+                        };
+                    }
+
+                    // Check if artist exists
+                    const artist = await Artist.findOne({ name: artistName });
+                    if (!artist) {
+                        return {
+                            success: false,
+                            message: "Artist not found"
+                        };
+                    }
+
+                    // @ts-ignore
+                    if (!user.followedArtists) {
+                        // @ts-ignore
+                        user.followedArtists = [];
+                    }
+
+                    // Check if already following
+                    // @ts-ignore
+                    if (user.followedArtists.includes(artistName)) {
+                        return {
+                            success: false,
+                            message: "Already following this artist"
+                        };
+                    }
+
+                    // Add artist to followed list
+                    // @ts-ignore
+                    user.followedArtists.push(artistName);
+                    await user.save();
+
+                    return {
+                        success: true,
+                        message: "Successfully followed artist"
+                    };
+                } catch (err) {
+                    console.error("Error following artist:", err);
+                    return {
+                        success: false,
+                        message: "Failed to follow artist"
+                    };
+                }
+            },
+        },
+        // unfollow artist
+        unfollowArtist: {
+            type: MutationResponseType,
+            args: {
+                artistName: { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(parent, { artistName }, context) {
+                // Require authentication
+                requireAuth(context.isAuthenticated);
+
+                try {
+                    const user = await User.findById(context.userId);
+                    if (!user) {
+                        return {
+                            success: false,
+                            message: "User not found"
+                        };
+                    }
+
+                    // @ts-ignore
+                    if (!user.followedArtists || !user.followedArtists.includes(artistName)) {
+                        return {
+                            success: false,
+                            message: "Not following this artist"
+                        };
+                    }
+
+                    // Remove artist from followed list
+                    // @ts-ignore
+                    user.followedArtists = user.followedArtists.filter(
+                        (name: string) => name !== artistName
+                    );
+                    await user.save();
+
+                    return {
+                        success: true,
+                        message: "Successfully unfollowed artist"
+                    };
+                } catch (err) {
+                    console.error("Error unfollowing artist:", err);
+                    return {
+                        success: false,
+                        message: "Failed to unfollow artist"
+                    };
+                }
+            },
+        },
     },
 });
 

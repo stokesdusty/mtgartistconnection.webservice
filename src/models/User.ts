@@ -34,6 +34,10 @@ const userSchema:Schema = new Schema({
             type: Boolean,
             default: false,
         }
+    },
+    followedArtists: {
+        type: [String],
+        default: [],
     }
 });
 

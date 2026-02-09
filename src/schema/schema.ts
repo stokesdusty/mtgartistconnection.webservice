@@ -1,4 +1,4 @@
-import { GraphQLID, GraphQLObjectType, GraphQLString, GraphQLNonNull, GraphQLScalarType, GraphQLInt, GraphQLBoolean } from "graphql";
+import { GraphQLID, GraphQLObjectType, GraphQLString, GraphQLNonNull, GraphQLScalarType, GraphQLInt, GraphQLBoolean, GraphQLList } from "graphql";
 
 export const ArtistType = new GraphQLObjectType({
     name: "ArtistType",
@@ -44,6 +44,7 @@ export const UserType = new GraphQLObjectType({
         email: { type: GraphQLNonNull(GraphQLString) },
         role: { type: GraphQLNonNull(GraphQLString) },
         emailPreferences: { type: EmailPreferencesType },
+        followedArtists: { type: GraphQLList(GraphQLString) },
     }),
 });
 
