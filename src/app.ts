@@ -16,7 +16,7 @@ app.use(cors());
 app.use(authMiddleware);
 app.use("/graphql", graphqlHTTP((req) => ({
     schema: schema,
-    graphiql: true,
+    graphiql: process.env.NODE_ENV !== 'production', // Only enable in development
     context: {
         isAuthenticated: (req as any).isAuthenticated,
         userId: (req as any).userId,
