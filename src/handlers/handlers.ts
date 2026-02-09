@@ -1,5 +1,5 @@
-import { GraphQLID, GraphQLInputObjectType, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, AuthResponseType, CardPriceType, MapArtistToEventType, SigningEventType, UserType } from "../schema/schema";
+import { GraphQLBoolean, GraphQLID, GraphQLInputObjectType, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
+import { ArtistType, AuthResponseType, CardPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, SigningEventType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
@@ -71,6 +71,22 @@ const RootQuery = new GraphQLObjectType({
                 }));
 
                 return await CardPrice.find({ $or: queries }).exec();
+            },
+        },
+        me: {
+            type: UserType,
+            async resolve(parent, args, context) {
+                requireAuth(context.isAuthenticated);
+
+                try {
+                    const user = await User.findById(context.userId);
+                    if (!user) {
+                        throw new Error("User not found");
+                    }
+                    return user;
+                } catch (err) {
+                    throw new Error("Failed to fetch user data");
+                }
             },
         },
     },
@@ -334,6 +350,96 @@ const mutations = new GraphQLObjectType({
                     return await newArtistInEvent.save();
                 } catch (err) {
                     throw new Error("Add Artist to Event Failed. Try again.");
+                }
+            },
+        },
+        // update password
+        updatePassword: {
+            type: MutationResponseType,
+            args: {
+                currentPassword: { type: GraphQLNonNull(GraphQLString) },
+                newPassword: { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(parent, {currentPassword, newPassword}, context) {
+                // Require authentication
+                requireAuth(context.isAuthenticated);
+
+                try {
+                    const user = await User.findById(context.userId);
+                    if (!user) {
+                        return {
+                            success: false,
+                            message: "User not found"
+                        };
+                    }
+
+                    // Verify current password
+                    // @ts-ignore
+                    const isPasswordValid = compareSync(currentPassword, user.password);
+                    if (!isPasswordValid) {
+                        return {
+                            success: false,
+                            message: "Current password is incorrect"
+                        };
+                    }
+
+                    // Hash and update new password
+                    const encryptedPassword = hashSync(newPassword);
+                    // @ts-ignore
+                    user.password = encryptedPassword;
+                    await user.save();
+
+                    return {
+                        success: true,
+                        message: "Password updated successfully"
+                    };
+                } catch (err) {
+                    return {
+                        success: false,
+                        message: "Failed to update password"
+                    };
+                }
+            },
+        },
+        // update email preferences
+        updateEmailPreferences: {
+            type: MutationResponseType,
+            args: {
+                siteUpdates: { type: GraphQLNonNull(GraphQLBoolean) },
+                artistUpdates: { type: GraphQLNonNull(GraphQLBoolean) },
+                localSigningEvents: { type: GraphQLNonNull(GraphQLBoolean) },
+            },
+            async resolve(parent, {siteUpdates, artistUpdates, localSigningEvents}, context) {
+                // Require authentication
+                requireAuth(context.isAuthenticated);
+
+                try {
+                    const user = await User.findById(context.userId);
+                    if (!user) {
+                        return {
+                            success: false,
+                            message: "User not found"
+                        };
+                    }
+
+                    // Update email preferences
+                    // @ts-ignore
+                    user.emailPreferences = {
+                        siteUpdates,
+                        artistUpdates,
+                        localSigningEvents
+                    };
+                    await user.save();
+
+                    return {
+                        success: true,
+                        message: "Email preferences updated successfully"
+                    };
+                } catch (err) {
+                    return {
+                        success: false,
+                        message: "Failed to update email preferences"
+                    };
                 }
             },
         },

@@ -1,4 +1,4 @@
-import { GraphQLID, GraphQLObjectType, GraphQLString, GraphQLNonNull, GraphQLScalarType, GraphQLInt } from "graphql";
+import { GraphQLID, GraphQLObjectType, GraphQLString, GraphQLNonNull, GraphQLScalarType, GraphQLInt, GraphQLBoolean } from "graphql";
 
 export const ArtistType = new GraphQLObjectType({
     name: "ArtistType",
@@ -27,6 +27,15 @@ export const ArtistType = new GraphQLObjectType({
     }),
 });
 
+export const EmailPreferencesType = new GraphQLObjectType({
+    name: "EmailPreferencesType",
+    fields: () => ({
+        siteUpdates: { type: GraphQLBoolean },
+        artistUpdates: { type: GraphQLBoolean },
+        localSigningEvents: { type: GraphQLBoolean },
+    }),
+});
+
 export const UserType = new GraphQLObjectType({
     name: "UserType",
     fields: () => ({
@@ -34,6 +43,7 @@ export const UserType = new GraphQLObjectType({
         name: { type: GraphQLNonNull(GraphQLString) },
         email: { type: GraphQLNonNull(GraphQLString) },
         role: { type: GraphQLNonNull(GraphQLString) },
+        emailPreferences: { type: EmailPreferencesType },
     }),
 });
 
@@ -79,5 +89,13 @@ export const CardPriceType = new GraphQLObjectType({
         price_cents_nm: { type: GraphQLInt },
         price_cents_foil: { type: GraphQLInt },
         url: { type: GraphQLString },
+    }),
+});
+
+export const MutationResponseType = new GraphQLObjectType({
+    name: "MutationResponseType",
+    fields: () => ({
+        success: { type: GraphQLNonNull(GraphQLBoolean) },
+        message: { type: GraphQLString },
     }),
 });

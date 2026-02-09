@@ -20,6 +20,20 @@ const userSchema:Schema = new Schema({
         enum: ['user', 'admin'],
         default: 'user',
         required: true,
+    },
+    emailPreferences: {
+        siteUpdates: {
+            type: Boolean,
+            default: false,
+        },
+        artistUpdates: {
+            type: Boolean,
+            default: false,
+        },
+        localSigningEvents: {
+            type: Boolean,
+            default: false,
+        }
     }
 });
 
