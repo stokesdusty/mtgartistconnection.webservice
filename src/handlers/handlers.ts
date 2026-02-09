@@ -422,13 +422,18 @@ const mutations = new GraphQLObjectType({
                         };
                     }
 
-                    // Update email preferences
+                    // Update email preferences using set to ensure proper nested object update
                     // @ts-ignore
-                    user.emailPreferences = {
-                        siteUpdates,
-                        artistUpdates,
-                        localSigningEvents
-                    };
+                    user.set('emailPreferences.siteUpdates', siteUpdates);
+                    // @ts-ignore
+                    user.set('emailPreferences.artistUpdates', artistUpdates);
+                    // @ts-ignore
+                    user.set('emailPreferences.localSigningEvents', localSigningEvents);
+
+                    // Mark the nested field as modified
+                    // @ts-ignore
+                    user.markModified('emailPreferences');
+
                     await user.save();
 
                     return {
@@ -436,6 +441,7 @@ const mutations = new GraphQLObjectType({
                         message: "Email preferences updated successfully"
                     };
                 } catch (err) {
+                    console.error("Error updating email preferences:", err);
                     return {
                         success: false,
                         message: "Failed to update email preferences"
