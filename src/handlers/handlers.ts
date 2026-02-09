@@ -184,12 +184,16 @@ const mutations = new GraphQLObjectType({
                     bluesky,
                     omalink,
                     inprnt
-                }
+                },
+                context
                 ) {
+                // Require authentication
+                requireAuth(context.isAuthenticated);
+
                 let existingArtist:DocumentType;
                 try {
                     existingArtist = await Artist.findOne({name});
-                    if(existingArtist) return new Error("Artist already exists");
+                    if(existingArtist) throw new Error("Artist already exists");
                     const artist = new Artist(
                         {
                             name,
@@ -215,7 +219,7 @@ const mutations = new GraphQLObjectType({
                         });
                     return await artist.save();
                 } catch (err) {
-                    return new Error("Artist Signup Failed. Try again.");
+                    throw new Error("Artist Signup Failed. Try again.");
                 }
             },
         },
@@ -225,17 +229,20 @@ const mutations = new GraphQLObjectType({
             args: {
                 id: { type: GraphQLNonNull(GraphQLID) },
             },
-            async resolve(parent, { id }) {
+            async resolve(parent, { id }, context) {
+                // Require authentication
+                requireAuth(context.isAuthenticated);
+
                 const session = await startSession();
                 let artist:DocumentType;
                 try {
                     session.startTransaction({ session });
                     artist = await Artist.findById(id);
-                    if (!artist) return new Error("Artist not found");
+                    if (!artist) throw new Error("Artist not found");
                     // @ts-ignore
                     return await Artist.findByIdAndDelete(artist.id);
                 } catch (err) {
-                    return new Error(err);
+                    throw new Error(err);
                 } finally {
                     await session.commitTransaction();
                 }
@@ -243,7 +250,10 @@ const mutations = new GraphQLObjectType({
         },
         deleteAllArtists: {
             type: GraphQLList(ArtistType),
-            async resolve(parent) {
+            async resolve(parent, args, context) {
+                // Require authentication
+                requireAuth(context.isAuthenticated);
+
                 return await Artist.deleteMany({});
             }
         },
@@ -254,7 +264,10 @@ const mutations = new GraphQLObjectType({
                 fieldName: { type: GraphQLNonNull(GraphQLString) },
                 valueToSet: { type: GraphQLNonNull(GraphQLString) }
             },
-            async resolve(parent, { id, fieldName, valueToSet }){
+            async resolve(parent, { id, fieldName, valueToSet }, context){
+                // Require authentication
+                requireAuth(context.isAuthenticated);
+
                 const session = await startSession();
                 let artist:DocumentType;
                 let updateValue = {};
@@ -262,13 +275,13 @@ const mutations = new GraphQLObjectType({
                 try {
                     session.startTransaction({session});
                     artist = await Artist.findById(id);
-                    if (!artist) return new Error("Artist not found");
+                    if (!artist) throw new Error("Artist not found");
                     return await Artist.findByIdAndUpdate(
                             { _id: artist.id },
                             updateValue
                         );
                 } catch (err) {
-                    return new Error(err);
+                    throw new Error(err);
                 } finally {
                     await session.commitTransaction();
                 }
@@ -284,11 +297,14 @@ const mutations = new GraphQLObjectType({
                 endDate: { type: GraphQLNonNull(GraphQLString) },
                 url: { type: GraphQLString },
             },
-            async resolve(parent, {name, city, startDate, endDate, url}) {
+            async resolve(parent, {name, city, startDate, endDate, url}, context) {
+                // Require authentication
+                requireAuth(context.isAuthenticated);
+
                 let existingEvent:DocumentType;
                 try {
                     existingEvent = await SigningEvent.findOne({ name });
-                    if(existingEvent) return new Error("Event already exists");
+                    if(existingEvent) throw new Error("Event already exists");
                     const newSigningEvent = new SigningEvent({name, city, startDate, endDate, url});
                     return await newSigningEvent.save();
                 } catch (err) {
@@ -303,15 +319,18 @@ const mutations = new GraphQLObjectType({
                 artistName: { type: GraphQLNonNull(GraphQLString) },
                 eventId: { type: GraphQLNonNull(GraphQLString) },
             },
-            async resolve(parent, {artistName, eventId}) {
+            async resolve(parent, {artistName, eventId}, context) {
+                // Require authentication
+                requireAuth(context.isAuthenticated);
+
                 let existingArtistInEvent:DocumentType;
                 try {
                     existingArtistInEvent = await MapArtistToEvent.findOne({ artistName, eventId });
-                    if(existingArtistInEvent) return new Error("Artist already exists in event");
+                    if(existingArtistInEvent) throw new Error("Artist already exists in event");
                     const newArtistInEvent = new MapArtistToEvent({artistName, eventId});
                     return await newArtistInEvent.save();
                 } catch (err) {
-                    return new Error("Add Artist to Event Failed. Try again.");
+                    throw new Error("Add Artist to Event Failed. Try again.");
                 }
             },
         },
