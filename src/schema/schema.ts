@@ -45,6 +45,7 @@ export const UserType = new GraphQLObjectType({
         role: { type: GraphQLNonNull(GraphQLString) },
         emailPreferences: { type: EmailPreferencesType },
         followedArtists: { type: GraphQLList(GraphQLString) },
+        monitoredStates: { type: GraphQLList(GraphQLString) },
     }),
 });
 

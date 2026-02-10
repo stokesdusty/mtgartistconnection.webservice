@@ -656,6 +656,112 @@ const mutations = new GraphQLObjectType({
                 }
             },
         },
+        // monitor state for events
+        monitorState: {
+            type: MutationResponseType,
+            args: {
+                state: { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(parent, { state }, context) {
+                // Require authentication
+                requireAuth(context.isAuthenticated);
+
+                try {
+                    const user = await User.findById(context.userId);
+                    if (!user) {
+                        return {
+                            success: false,
+                            message: "User not found"
+                        };
+                    }
+
+                    // @ts-ignore
+                    if (!user.monitoredStates) {
+                        // @ts-ignore
+                        user.monitoredStates = [];
+                    }
+
+                    // Check if already monitoring
+                    // @ts-ignore
+                    if (user.monitoredStates.includes(state)) {
+                        return {
+                            success: false,
+                            message: "Already monitoring this state"
+                        };
+                    }
+
+                    // Add state to monitored list
+                    // @ts-ignore
+                    user.monitoredStates.push(state);
+
+                    // Automatically enable localSigningEvents email preference
+                    // @ts-ignore
+                    user.set('emailPreferences.localSigningEvents', true);
+                    // @ts-ignore
+                    user.markModified('emailPreferences');
+
+                    await user.save();
+
+                    return {
+                        success: true,
+                        message: "Successfully added state to monitoring"
+                    };
+                } catch (err) {
+                    console.error("Error monitoring state:", err);
+                    return {
+                        success: false,
+                        message: "Failed to monitor state"
+                    };
+                }
+            },
+        },
+        // unmonitor state
+        unmonitorState: {
+            type: MutationResponseType,
+            args: {
+                state: { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(parent, { state }, context) {
+                // Require authentication
+                requireAuth(context.isAuthenticated);
+
+                try {
+                    const user = await User.findById(context.userId);
+                    if (!user) {
+                        return {
+                            success: false,
+                            message: "User not found"
+                        };
+                    }
+
+                    // @ts-ignore
+                    if (!user.monitoredStates || !user.monitoredStates.includes(state)) {
+                        return {
+                            success: false,
+                            message: "Not monitoring this state"
+                        };
+                    }
+
+                    // Remove state from monitored list
+                    // @ts-ignore
+                    user.monitoredStates = user.monitoredStates.filter(
+                        (s: string) => s !== state
+                    );
+                    await user.save();
+
+                    return {
+                        success: true,
+                        message: "Successfully removed state from monitoring"
+                    };
+                } catch (err) {
+                    console.error("Error unmonitoring state:", err);
+                    return {
+                        success: false,
+                        message: "Failed to unmonitor state"
+                    };
+                }
+            },
+        },
     },
 });
 

@@ -39,6 +39,11 @@ const userSchema:Schema = new Schema({
         type: [String],
         default: [],
         index: true,  // Index for faster queries when finding followers of an artist
+    },
+    monitoredStates: {
+        type: [String],
+        default: [],
+        index: true,  // Index for faster queries when finding users monitoring a state
     }
 });
 

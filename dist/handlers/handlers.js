@@ -12,6 +12,7 @@ const SigningEvent_1 = __importDefault(require("../models/SigningEvent"));
 const bcrypt_nodejs_1 = require("bcrypt-nodejs");
 const MapArtistToEvent_1 = __importDefault(require("../models/MapArtistToEvent"));
 const CardPrice_1 = __importDefault(require("../models/CardPrice"));
+const ArtistChange_1 = __importDefault(require("../models/ArtistChange"));
 const auth_1 = require("../middleware/auth");
 const CardLookupInput = new graphql_1.GraphQLInputObjectType({
     name: "CardLookupInput",
@@ -35,6 +36,13 @@ const RootQuery = new graphql_1.GraphQLObjectType({
             args: { name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) } },
             async resolve(parent, { name }) {
                 return await Artist_1.default.findOne({ name: name }).exec();
+            },
+        },
+        artistById: {
+            type: schema_1.ArtistType,
+            args: { id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) } },
+            async resolve(parent, { id }) {
+                return await Artist_1.default.findById(id).exec();
             },
         },
         users: {
@@ -71,6 +79,22 @@ const RootQuery = new graphql_1.GraphQLObjectType({
                     number: card.number,
                 }));
                 return await CardPrice_1.default.find({ $or: queries }).exec();
+            },
+        },
+        me: {
+            type: schema_1.UserType,
+            async resolve(parent, args, context) {
+                (0, auth_1.requireAuth)(context.isAuthenticated);
+                try {
+                    const user = await User_1.default.findById(context.userId);
+                    if (!user) {
+                        throw new Error("User not found");
+                    }
+                    return user;
+                }
+                catch (err) {
+                    throw new Error("Failed to fetch user data");
+                }
             },
         },
     },
@@ -265,6 +289,70 @@ const mutations = new graphql_1.GraphQLObjectType({
                 }
             },
         },
+        updateArtistBulk: {
+            type: schema_1.ArtistType,
+            args: {
+                id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+                name: { type: graphql_1.GraphQLString },
+                email: { type: graphql_1.GraphQLString },
+                artistProofs: { type: graphql_1.GraphQLString },
+                facebook: { type: graphql_1.GraphQLString },
+                instagram: { type: graphql_1.GraphQLString },
+                twitter: { type: graphql_1.GraphQLString },
+                patreon: { type: graphql_1.GraphQLString },
+                youtube: { type: graphql_1.GraphQLString },
+                artstation: { type: graphql_1.GraphQLString },
+                bluesky: { type: graphql_1.GraphQLString },
+                signing: { type: graphql_1.GraphQLString },
+                signingComment: { type: graphql_1.GraphQLString },
+                haveSignature: { type: graphql_1.GraphQLString },
+                url: { type: graphql_1.GraphQLString },
+                location: { type: graphql_1.GraphQLString },
+                filename: { type: graphql_1.GraphQLString },
+                mountainmage: { type: graphql_1.GraphQLString },
+                markssignatureservice: { type: graphql_1.GraphQLString },
+                omalink: { type: graphql_1.GraphQLString },
+                inprnt: { type: graphql_1.GraphQLString },
+            },
+            async resolve(parent, args, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
+                const { id, ...updateFields } = args;
+                try {
+                    // Fetch current artist to compare changes
+                    const currentArtist = await Artist_1.default.findById(id);
+                    if (!currentArtist)
+                        throw new Error("Artist not found");
+                    // Track which fields changed
+                    const fieldsChanged = [];
+                    const updateData = {};
+                    for (const [key, value] of Object.entries(updateFields)) {
+                        if (value !== undefined && value !== null) {
+                            updateData[key] = value;
+                            if (currentArtist[key] !== value) {
+                                fieldsChanged.push(key);
+                            }
+                        }
+                    }
+                    // Update the artist
+                    const updatedArtist = await Artist_1.default.findByIdAndUpdate(id, { $set: updateData }, { new: true });
+                    // Create ArtistChange record if fields actually changed
+                    if (fieldsChanged.length > 0) {
+                        await ArtistChange_1.default.create({
+                            artistName: updatedArtist.name,
+                            changeType: 'update',
+                            fieldsChanged: fieldsChanged,
+                            timestamp: new Date(),
+                            processed: false
+                        });
+                    }
+                    return updatedArtist;
+                }
+                catch (err) {
+                    throw new Error(err.message || "Update artist failed");
+                }
+            },
+        },
         // add event
         signingEvent: {
             type: schema_1.SigningEventType,
@@ -307,10 +395,308 @@ const mutations = new graphql_1.GraphQLObjectType({
                     if (existingArtistInEvent)
                         throw new Error("Artist already exists in event");
                     const newArtistInEvent = new MapArtistToEvent_1.default({ artistName, eventId });
-                    return await newArtistInEvent.save();
+                    const result = await newArtistInEvent.save();
+                    // Track change for email digest
+                    const event = await SigningEvent_1.default.findById(eventId);
+                    if (event) {
+                        await ArtistChange_1.default.create({
+                            artistName: artistName,
+                            changeType: 'added_to_event',
+                            eventId: event._id,
+                            eventName: event.name,
+                            eventStartDate: event.startDate,
+                            eventEndDate: event.endDate,
+                            eventLocation: `${event.city}${event.state ? ', ' + event.state : ''}${event.country ? ', ' + event.country : ''}`,
+                            timestamp: new Date(),
+                            processed: false
+                        });
+                    }
+                    return result;
                 }
                 catch (err) {
                     throw new Error("Add Artist to Event Failed. Try again.");
+                }
+            },
+        },
+        // update password
+        updatePassword: {
+            type: schema_1.MutationResponseType,
+            args: {
+                currentPassword: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                newPassword: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+            },
+            async resolve(parent, { currentPassword, newPassword }, context) {
+                // Require authentication
+                (0, auth_1.requireAuth)(context.isAuthenticated);
+                try {
+                    const user = await User_1.default.findById(context.userId);
+                    if (!user) {
+                        return {
+                            success: false,
+                            message: "User not found"
+                        };
+                    }
+                    // Verify current password
+                    // @ts-ignore
+                    const isPasswordValid = (0, bcrypt_nodejs_1.compareSync)(currentPassword, user.password);
+                    if (!isPasswordValid) {
+                        return {
+                            success: false,
+                            message: "Current password is incorrect"
+                        };
+                    }
+                    // Hash and update new password
+                    const encryptedPassword = (0, bcrypt_nodejs_1.hashSync)(newPassword);
+                    // @ts-ignore
+                    user.password = encryptedPassword;
+                    await user.save();
+                    return {
+                        success: true,
+                        message: "Password updated successfully"
+                    };
+                }
+                catch (err) {
+                    return {
+                        success: false,
+                        message: "Failed to update password"
+                    };
+                }
+            },
+        },
+        // update email preferences
+        updateEmailPreferences: {
+            type: schema_1.MutationResponseType,
+            args: {
+                siteUpdates: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLBoolean) },
+                artistUpdates: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLBoolean) },
+                localSigningEvents: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLBoolean) },
+            },
+            async resolve(parent, { siteUpdates, artistUpdates, localSigningEvents }, context) {
+                // Require authentication
+                (0, auth_1.requireAuth)(context.isAuthenticated);
+                try {
+                    const user = await User_1.default.findById(context.userId);
+                    if (!user) {
+                        return {
+                            success: false,
+                            message: "User not found"
+                        };
+                    }
+                    // Update email preferences using set to ensure proper nested object update
+                    // @ts-ignore
+                    user.set('emailPreferences.siteUpdates', siteUpdates);
+                    // @ts-ignore
+                    user.set('emailPreferences.artistUpdates', artistUpdates);
+                    // @ts-ignore
+                    user.set('emailPreferences.localSigningEvents', localSigningEvents);
+                    // Mark the nested field as modified
+                    // @ts-ignore
+                    user.markModified('emailPreferences');
+                    await user.save();
+                    return {
+                        success: true,
+                        message: "Email preferences updated successfully"
+                    };
+                }
+                catch (err) {
+                    console.error("Error updating email preferences:", err);
+                    return {
+                        success: false,
+                        message: "Failed to update email preferences"
+                    };
+                }
+            },
+        },
+        // follow artist
+        followArtist: {
+            type: schema_1.MutationResponseType,
+            args: {
+                artistName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+            },
+            async resolve(parent, { artistName }, context) {
+                // Require authentication
+                (0, auth_1.requireAuth)(context.isAuthenticated);
+                try {
+                    const user = await User_1.default.findById(context.userId);
+                    if (!user) {
+                        return {
+                            success: false,
+                            message: "User not found"
+                        };
+                    }
+                    // Check if artist exists
+                    const artist = await Artist_1.default.findOne({ name: artistName });
+                    if (!artist) {
+                        return {
+                            success: false,
+                            message: "Artist not found"
+                        };
+                    }
+                    // @ts-ignore
+                    if (!user.followedArtists) {
+                        // @ts-ignore
+                        user.followedArtists = [];
+                    }
+                    // Check if already following
+                    // @ts-ignore
+                    if (user.followedArtists.includes(artistName)) {
+                        return {
+                            success: false,
+                            message: "Already following this artist"
+                        };
+                    }
+                    // Add artist to followed list
+                    // @ts-ignore
+                    user.followedArtists.push(artistName);
+                    await user.save();
+                    return {
+                        success: true,
+                        message: "Successfully followed artist"
+                    };
+                }
+                catch (err) {
+                    console.error("Error following artist:", err);
+                    return {
+                        success: false,
+                        message: "Failed to follow artist"
+                    };
+                }
+            },
+        },
+        // unfollow artist
+        unfollowArtist: {
+            type: schema_1.MutationResponseType,
+            args: {
+                artistName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+            },
+            async resolve(parent, { artistName }, context) {
+                // Require authentication
+                (0, auth_1.requireAuth)(context.isAuthenticated);
+                try {
+                    const user = await User_1.default.findById(context.userId);
+                    if (!user) {
+                        return {
+                            success: false,
+                            message: "User not found"
+                        };
+                    }
+                    // @ts-ignore
+                    if (!user.followedArtists || !user.followedArtists.includes(artistName)) {
+                        return {
+                            success: false,
+                            message: "Not following this artist"
+                        };
+                    }
+                    // Remove artist from followed list
+                    // @ts-ignore
+                    user.followedArtists = user.followedArtists.filter((name) => name !== artistName);
+                    await user.save();
+                    return {
+                        success: true,
+                        message: "Successfully unfollowed artist"
+                    };
+                }
+                catch (err) {
+                    console.error("Error unfollowing artist:", err);
+                    return {
+                        success: false,
+                        message: "Failed to unfollow artist"
+                    };
+                }
+            },
+        },
+        // monitor state for events
+        monitorState: {
+            type: schema_1.MutationResponseType,
+            args: {
+                state: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+            },
+            async resolve(parent, { state }, context) {
+                // Require authentication
+                (0, auth_1.requireAuth)(context.isAuthenticated);
+                try {
+                    const user = await User_1.default.findById(context.userId);
+                    if (!user) {
+                        return {
+                            success: false,
+                            message: "User not found"
+                        };
+                    }
+                    // @ts-ignore
+                    if (!user.monitoredStates) {
+                        // @ts-ignore
+                        user.monitoredStates = [];
+                    }
+                    // Check if already monitoring
+                    // @ts-ignore
+                    if (user.monitoredStates.includes(state)) {
+                        return {
+                            success: false,
+                            message: "Already monitoring this state"
+                        };
+                    }
+                    // Add state to monitored list
+                    // @ts-ignore
+                    user.monitoredStates.push(state);
+                    // Automatically enable localSigningEvents email preference
+                    // @ts-ignore
+                    user.set('emailPreferences.localSigningEvents', true);
+                    // @ts-ignore
+                    user.markModified('emailPreferences');
+                    await user.save();
+                    return {
+                        success: true,
+                        message: "Successfully added state to monitoring"
+                    };
+                }
+                catch (err) {
+                    console.error("Error monitoring state:", err);
+                    return {
+                        success: false,
+                        message: "Failed to monitor state"
+                    };
+                }
+            },
+        },
+        // unmonitor state
+        unmonitorState: {
+            type: schema_1.MutationResponseType,
+            args: {
+                state: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+            },
+            async resolve(parent, { state }, context) {
+                // Require authentication
+                (0, auth_1.requireAuth)(context.isAuthenticated);
+                try {
+                    const user = await User_1.default.findById(context.userId);
+                    if (!user) {
+                        return {
+                            success: false,
+                            message: "User not found"
+                        };
+                    }
+                    // @ts-ignore
+                    if (!user.monitoredStates || !user.monitoredStates.includes(state)) {
+                        return {
+                            success: false,
+                            message: "Not monitoring this state"
+                        };
+                    }
+                    // Remove state from monitored list
+                    // @ts-ignore
+                    user.monitoredStates = user.monitoredStates.filter((s) => s !== state);
+                    await user.save();
+                    return {
+                        success: true,
+                        message: "Successfully removed state from monitoring"
+                    };
+                }
+                catch (err) {
+                    console.error("Error unmonitoring state:", err);
+                    return {
+                        success: false,
+                        message: "Failed to unmonitor state"
+                    };
                 }
             },
         },

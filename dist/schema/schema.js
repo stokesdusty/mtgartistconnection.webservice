@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CardPriceType = exports.MapArtistToEventType = exports.SigningEventType = exports.AuthResponseType = exports.UserType = exports.ArtistType = void 0;
+exports.ArtistChangeType = exports.MutationResponseType = exports.CardPriceType = exports.MapArtistToEventType = exports.SigningEventType = exports.AuthResponseType = exports.UserType = exports.EmailPreferencesType = exports.ArtistType = void 0;
 const graphql_1 = require("graphql");
 exports.ArtistType = new graphql_1.GraphQLObjectType({
     name: "ArtistType",
@@ -28,6 +28,14 @@ exports.ArtistType = new graphql_1.GraphQLObjectType({
         inprnt: { type: graphql_1.GraphQLString }
     }),
 });
+exports.EmailPreferencesType = new graphql_1.GraphQLObjectType({
+    name: "EmailPreferencesType",
+    fields: () => ({
+        siteUpdates: { type: graphql_1.GraphQLBoolean },
+        artistUpdates: { type: graphql_1.GraphQLBoolean },
+        localSigningEvents: { type: graphql_1.GraphQLBoolean },
+    }),
+});
 exports.UserType = new graphql_1.GraphQLObjectType({
     name: "UserType",
     fields: () => ({
@@ -35,6 +43,9 @@ exports.UserType = new graphql_1.GraphQLObjectType({
         name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
         email: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
         role: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        emailPreferences: { type: exports.EmailPreferencesType },
+        followedArtists: { type: (0, graphql_1.GraphQLList)(graphql_1.GraphQLString) },
+        monitoredStates: { type: (0, graphql_1.GraphQLList)(graphql_1.GraphQLString) },
     }),
 });
 exports.AuthResponseType = new graphql_1.GraphQLObjectType({
@@ -76,6 +87,30 @@ exports.CardPriceType = new graphql_1.GraphQLObjectType({
         price_cents_nm: { type: graphql_1.GraphQLInt },
         price_cents_foil: { type: graphql_1.GraphQLInt },
         url: { type: graphql_1.GraphQLString },
+    }),
+});
+exports.MutationResponseType = new graphql_1.GraphQLObjectType({
+    name: "MutationResponseType",
+    fields: () => ({
+        success: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLBoolean) },
+        message: { type: graphql_1.GraphQLString },
+    }),
+});
+exports.ArtistChangeType = new graphql_1.GraphQLObjectType({
+    name: "ArtistChangeType",
+    fields: () => ({
+        id: { type: graphql_1.GraphQLID },
+        artistName: { type: graphql_1.GraphQLString },
+        changeType: { type: graphql_1.GraphQLString },
+        timestamp: { type: graphql_1.GraphQLString },
+        fieldsChanged: { type: new graphql_1.GraphQLList(graphql_1.GraphQLString) },
+        eventId: { type: graphql_1.GraphQLString },
+        eventName: { type: graphql_1.GraphQLString },
+        eventStartDate: { type: graphql_1.GraphQLString },
+        eventEndDate: { type: graphql_1.GraphQLString },
+        eventLocation: { type: graphql_1.GraphQLString },
+        processed: { type: graphql_1.GraphQLBoolean },
+        processedAt: { type: graphql_1.GraphQLString },
     }),
 });
 //# sourceMappingURL=schema.js.map
