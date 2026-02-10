@@ -13,6 +13,7 @@ const bcrypt_nodejs_1 = require("bcrypt-nodejs");
 const MapArtistToEvent_1 = __importDefault(require("../models/MapArtistToEvent"));
 const CardPrice_1 = __importDefault(require("../models/CardPrice"));
 const ArtistChange_1 = __importDefault(require("../models/ArtistChange"));
+const EventChange_1 = __importDefault(require("../models/EventChange"));
 const auth_1 = require("../middleware/auth");
 const CardLookupInput = new graphql_1.GraphQLInputObjectType({
     name: "CardLookupInput",
@@ -359,11 +360,12 @@ const mutations = new graphql_1.GraphQLObjectType({
             args: {
                 name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
                 city: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                state: { type: graphql_1.GraphQLString },
                 startDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
                 endDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
                 url: { type: graphql_1.GraphQLString },
             },
-            async resolve(parent, { name, city, startDate, endDate, url }, context) {
+            async resolve(parent, { name, city, state, startDate, endDate, url }, context) {
                 // Require admin privileges
                 (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
                 let existingEvent;
@@ -371,8 +373,23 @@ const mutations = new graphql_1.GraphQLObjectType({
                     existingEvent = await SigningEvent_1.default.findOne({ name });
                     if (existingEvent)
                         throw new Error("Event already exists");
-                    const newSigningEvent = new SigningEvent_1.default({ name, city, startDate, endDate, url });
-                    return await newSigningEvent.save();
+                    const newSigningEvent = new SigningEvent_1.default({ name, city, state, startDate, endDate, url });
+                    const savedEvent = await newSigningEvent.save();
+                    // Track event creation for email notifications if state is provided
+                    if (state) {
+                        await EventChange_1.default.create({
+                            eventId: savedEvent._id,
+                            eventName: name,
+                            city: city,
+                            state: state,
+                            startDate: new Date(startDate),
+                            endDate: new Date(endDate),
+                            url: url || null,
+                            timestamp: new Date(),
+                            processed: false
+                        });
+                    }
+                    return savedEvent;
                 }
                 catch (err) {
                     return new Error("Add Signing Event Failed. Try again.");

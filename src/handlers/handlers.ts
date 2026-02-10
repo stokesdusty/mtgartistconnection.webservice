@@ -8,6 +8,7 @@ import { hashSync, compareSync } from "bcrypt-nodejs";
 import MapArtistToEvent from "../models/MapArtistToEvent";
 import CardPrice from "../models/CardPrice";
 import ArtistChange from "../models/ArtistChange";
+import EventChange from "../models/EventChange";
 import { generateToken, requireAuth, requireAdmin } from "../middleware/auth";
 
 type DocumentType = Document<any, any, any>;
@@ -393,11 +394,12 @@ const mutations = new GraphQLObjectType({
             args: {
                 name: { type: GraphQLNonNull(GraphQLString) },
                 city: { type: GraphQLNonNull(GraphQLString) },
+                state: { type: GraphQLString },
                 startDate: { type: GraphQLNonNull(GraphQLString) },
                 endDate: { type: GraphQLNonNull(GraphQLString) },
                 url: { type: GraphQLString },
             },
-            async resolve(parent, {name, city, startDate, endDate, url}, context) {
+            async resolve(parent, {name, city, state, startDate, endDate, url}, context) {
                 // Require admin privileges
                 requireAdmin(context.isAuthenticated, context.userRole);
 
@@ -405,8 +407,25 @@ const mutations = new GraphQLObjectType({
                 try {
                     existingEvent = await SigningEvent.findOne({ name });
                     if(existingEvent) throw new Error("Event already exists");
-                    const newSigningEvent = new SigningEvent({name, city, startDate, endDate, url});
-                    return await newSigningEvent.save();
+                    const newSigningEvent = new SigningEvent({name, city, state, startDate, endDate, url});
+                    const savedEvent = await newSigningEvent.save();
+
+                    // Track event creation for email notifications if state is provided
+                    if (state) {
+                        await EventChange.create({
+                            eventId: savedEvent._id,
+                            eventName: name,
+                            city: city,
+                            state: state,
+                            startDate: new Date(startDate),
+                            endDate: new Date(endDate),
+                            url: url || null,
+                            timestamp: new Date(),
+                            processed: false
+                        });
+                    }
+
+                    return savedEvent;
                 } catch (err) {
                     return new Error("Add Signing Event Failed. Try again.");
                 }

@@ -10,6 +10,12 @@ const signingEventSchema = new mongoose_1.Schema({
         type: String,
         required: true,
     },
+    state: {
+        type: String,
+        required: false,
+        default: null,
+        index: true, // Index for faster queries when finding events by state
+    },
     startDate: {
         type: String,
         required: true,

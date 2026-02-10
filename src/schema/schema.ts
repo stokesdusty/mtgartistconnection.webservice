@@ -63,6 +63,7 @@ export const SigningEventType = new GraphQLObjectType({
         id: { type: GraphQLNonNull(GraphQLID) },
         name: { type: GraphQLNonNull(GraphQLString) },
         city: { type: GraphQLNonNull(GraphQLString) },
+        state: { type: GraphQLString },
         startDate: { type: GraphQLNonNull(GraphQLString) },
         endDate: { type: GraphQLNonNull(GraphQLString) },
         url: { type: GraphQLString },

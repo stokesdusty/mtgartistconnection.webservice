@@ -13,6 +13,7 @@ const node_cron_1 = __importDefault(require("node-cron"));
 const priceSyncService_1 = require("./services/priceSyncService");
 const auth_1 = require("./middleware/auth");
 const dailyDigest_1 = require("./jobs/dailyDigest");
+const dailyEventDigest_1 = require("./jobs/dailyEventDigest");
 // Dotenv config
 (0, dotenv_1.config)();
 const app = (0, express_1.default)();
@@ -50,18 +51,29 @@ app.use("/graphql", (0, express_graphql_1.graphqlHTTP)((req) => ({
     .then(() => {
     // Start the daily price sync scheduler
     (0, priceSyncService_1.startPriceSyncScheduler)();
-    // Start the daily digest scheduler
-    // Run daily at 8 PM (20:00) in server timezone
+    // Start the daily digest schedulers
+    // Run artist digest daily at 8 PM (20:00) in server timezone
     node_cron_1.default.schedule('0 20 * * *', async () => {
-        console.log('Triggering daily digest job...');
+        console.log('Triggering daily artist digest job...');
         try {
             await (0, dailyDigest_1.runDailyDigest)();
         }
         catch (error) {
-            console.error('Daily digest job failed:', error);
+            console.error('Daily artist digest job failed:', error);
         }
     });
-    console.log('Daily digest cron job scheduled for 8 PM daily');
+    console.log('Daily artist digest cron job scheduled for 8 PM daily');
+    // Run event digest daily at 8 PM (20:00) in server timezone
+    node_cron_1.default.schedule('0 20 * * *', async () => {
+        console.log('Triggering daily event digest job...');
+        try {
+            await (0, dailyEventDigest_1.runDailyEventDigest)();
+        }
+        catch (error) {
+            console.error('Daily event digest job failed:', error);
+        }
+    });
+    console.log('Daily event digest cron job scheduled for 8 PM daily');
     return app.listen(process.env.PORT, () => console.log(`Server Open on Port ${process.env.PORT}`));
 })
     .catch(err => console.log(err));

@@ -61,6 +61,7 @@ exports.SigningEventType = new graphql_1.GraphQLObjectType({
         id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
         name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
         city: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        state: { type: graphql_1.GraphQLString },
         startDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
         endDate: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
         url: { type: graphql_1.GraphQLString },

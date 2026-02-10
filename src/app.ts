@@ -8,6 +8,7 @@ import cron from 'node-cron';
 import { startPriceSyncScheduler } from './services/priceSyncService';
 import { authMiddleware } from './middleware/auth';
 import { runDailyDigest } from './jobs/dailyDigest';
+import { runDailyEventDigest } from './jobs/dailyEventDigest';
 
 // Dotenv config
 config();
@@ -49,17 +50,28 @@ connectToDatabase()
         // Start the daily price sync scheduler
         startPriceSyncScheduler();
 
-        // Start the daily digest scheduler
-        // Run daily at 8 PM (20:00) in server timezone
+        // Start the daily digest schedulers
+        // Run artist digest daily at 8 PM (20:00) in server timezone
         cron.schedule('0 20 * * *', async () => {
-            console.log('Triggering daily digest job...');
+            console.log('Triggering daily artist digest job...');
             try {
                 await runDailyDigest();
             } catch (error) {
-                console.error('Daily digest job failed:', error);
+                console.error('Daily artist digest job failed:', error);
             }
         });
-        console.log('Daily digest cron job scheduled for 8 PM daily');
+        console.log('Daily artist digest cron job scheduled for 8 PM daily');
+
+        // Run event digest daily at 8 PM (20:00) in server timezone
+        cron.schedule('0 20 * * *', async () => {
+            console.log('Triggering daily event digest job...');
+            try {
+                await runDailyEventDigest();
+            } catch (error) {
+                console.error('Daily event digest job failed:', error);
+            }
+        });
+        console.log('Daily event digest cron job scheduled for 8 PM daily');
 
         return app.listen(process.env.PORT,
         () => console.log(`Server Open on Port ${process.env.PORT}`)
