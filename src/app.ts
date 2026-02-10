@@ -4,8 +4,10 @@ import { connectToDatabase } from './utils/connection';
 import { graphqlHTTP } from 'express-graphql';
 import schema from "./handlers/handlers";
 import cors from "cors";
+import cron from 'node-cron';
 import { startPriceSyncScheduler } from './services/priceSyncService';
 import { authMiddleware } from './middleware/auth';
+import { runDailyDigest } from './jobs/dailyDigest';
 
 // Dotenv config
 config();
@@ -46,6 +48,18 @@ connectToDatabase()
     .then(() => {
         // Start the daily price sync scheduler
         startPriceSyncScheduler();
+
+        // Start the daily digest scheduler
+        // Run daily at 8 PM (20:00) in server timezone
+        cron.schedule('0 20 * * *', async () => {
+            console.log('Triggering daily digest job...');
+            try {
+                await runDailyDigest();
+            } catch (error) {
+                console.error('Daily digest job failed:', error);
+            }
+        });
+        console.log('Daily digest cron job scheduled for 8 PM daily');
 
         return app.listen(process.env.PORT,
         () => console.log(`Server Open on Port ${process.env.PORT}`)

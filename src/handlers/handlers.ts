@@ -7,6 +7,7 @@ import SigningEvent from "../models/SigningEvent";
 import { hashSync, compareSync } from "bcrypt-nodejs";
 import MapArtistToEvent from "../models/MapArtistToEvent";
 import CardPrice from "../models/CardPrice";
+import ArtistChange from "../models/ArtistChange";
 import { generateToken, requireAuth, requireAdmin } from "../middleware/auth";
 
 type DocumentType = Document<any, any, any>;
@@ -34,6 +35,13 @@ const RootQuery = new GraphQLObjectType({
             args: { name: { type: GraphQLNonNull(GraphQLString)}},
             async resolve(parent, { name }) {
                 return await Artist.findOne({ name: name }).exec();
+            },
+        },
+        artistById: {
+            type: ArtistType,
+            args: { id: { type: GraphQLNonNull(GraphQLID)}},
+            async resolve(parent, { id }) {
+                return await Artist.findById(id).exec();
             },
         },
         users: {
@@ -306,6 +314,79 @@ const mutations = new GraphQLObjectType({
                 }
             },
         },
+        updateArtistBulk: {
+            type: ArtistType,
+            args: {
+                id: { type: GraphQLNonNull(GraphQLID) },
+                name: { type: GraphQLString },
+                email: { type: GraphQLString },
+                artistProofs: { type: GraphQLString },
+                facebook: { type: GraphQLString },
+                instagram: { type: GraphQLString },
+                twitter: { type: GraphQLString },
+                patreon: { type: GraphQLString },
+                youtube: { type: GraphQLString },
+                artstation: { type: GraphQLString },
+                bluesky: { type: GraphQLString },
+                signing: { type: GraphQLString },
+                signingComment: { type: GraphQLString },
+                haveSignature: { type: GraphQLString },
+                url: { type: GraphQLString },
+                location: { type: GraphQLString },
+                filename: { type: GraphQLString },
+                mountainmage: { type: GraphQLString },
+                markssignatureservice: { type: GraphQLString },
+                omalink: { type: GraphQLString },
+                inprnt: { type: GraphQLString },
+            },
+            async resolve(parent, args, context) {
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
+
+                const { id, ...updateFields } = args;
+
+                try {
+                    // Fetch current artist to compare changes
+                    const currentArtist = await Artist.findById(id);
+                    if (!currentArtist) throw new Error("Artist not found");
+
+                    // Track which fields changed
+                    const fieldsChanged: string[] = [];
+                    const updateData: any = {};
+
+                    for (const [key, value] of Object.entries(updateFields)) {
+                        if (value !== undefined && value !== null) {
+                            updateData[key] = value;
+                            if (currentArtist[key] !== value) {
+                                fieldsChanged.push(key);
+                            }
+                        }
+                    }
+
+                    // Update the artist
+                    const updatedArtist = await Artist.findByIdAndUpdate(
+                        id,
+                        { $set: updateData },
+                        { new: true }
+                    );
+
+                    // Create ArtistChange record if fields actually changed
+                    if (fieldsChanged.length > 0) {
+                        await ArtistChange.create({
+                            artistName: updatedArtist.name,
+                            changeType: 'update',
+                            fieldsChanged: fieldsChanged,
+                            timestamp: new Date(),
+                            processed: false
+                        });
+                    }
+
+                    return updatedArtist;
+                } catch (err) {
+                    throw new Error(err.message || "Update artist failed");
+                }
+            },
+        },
         // add event
         signingEvent: {
             type: SigningEventType,
@@ -347,7 +428,25 @@ const mutations = new GraphQLObjectType({
                     existingArtistInEvent = await MapArtistToEvent.findOne({ artistName, eventId });
                     if(existingArtistInEvent) throw new Error("Artist already exists in event");
                     const newArtistInEvent = new MapArtistToEvent({artistName, eventId});
-                    return await newArtistInEvent.save();
+                    const result = await newArtistInEvent.save();
+
+                    // Track change for email digest
+                    const event = await SigningEvent.findById(eventId);
+                    if (event) {
+                        await ArtistChange.create({
+                            artistName: artistName,
+                            changeType: 'added_to_event',
+                            eventId: event._id,
+                            eventName: event.name,
+                            eventStartDate: event.startDate,
+                            eventEndDate: event.endDate,
+                            eventLocation: `${event.city}${event.state ? ', ' + event.state : ''}${event.country ? ', ' + event.country : ''}`,
+                            timestamp: new Date(),
+                            processed: false
+                        });
+                    }
+
+                    return result;
                 } catch (err) {
                     throw new Error("Add Artist to Event Failed. Try again.");
                 }

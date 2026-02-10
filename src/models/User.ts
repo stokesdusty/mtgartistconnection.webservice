@@ -38,6 +38,7 @@ const userSchema:Schema = new Schema({
     followedArtists: {
         type: [String],
         default: [],
+        index: true,  // Index for faster queries when finding followers of an artist
     }
 });
 

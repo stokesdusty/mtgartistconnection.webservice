@@ -100,3 +100,21 @@ export const MutationResponseType = new GraphQLObjectType({
         message: { type: GraphQLString },
     }),
 });
+
+export const ArtistChangeType = new GraphQLObjectType({
+    name: "ArtistChangeType",
+    fields: () => ({
+        id: { type: GraphQLID },
+        artistName: { type: GraphQLString },
+        changeType: { type: GraphQLString },
+        timestamp: { type: GraphQLString },
+        fieldsChanged: { type: new GraphQLList(GraphQLString) },
+        eventId: { type: GraphQLString },
+        eventName: { type: GraphQLString },
+        eventStartDate: { type: GraphQLString },
+        eventEndDate: { type: GraphQLString },
+        eventLocation: { type: GraphQLString },
+        processed: { type: GraphQLBoolean },
+        processedAt: { type: GraphQLString },
+    }),
+});
