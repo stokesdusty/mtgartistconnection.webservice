@@ -53,6 +53,7 @@ export const fetchAndStoreCardKingdomPrices = async (): Promise<void> => {
                     textless: card.variation?.toLowerCase().includes('textless') || false,
                     printingId: card.id,
                     id: card.id,
+                    scryfallId: card.scryfall_id,
                     price: Math.round(retailPrice * 100), // Convert dollars to cents
                     url: `https://www.cardkingdom.com/${card.url}`,
                     fetchedAt,

@@ -111,6 +111,7 @@ export const CardKingdomPriceType = new GraphQLObjectType({
         promo: { type: GraphQLBoolean },
         textless: { type: GraphQLBoolean },
         printingId: { type: GraphQLInt },
+        scryfallId: { type: GraphQLString },
         price: { type: GraphQLInt },
         url: { type: GraphQLString },
     }),

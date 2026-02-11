@@ -106,6 +106,7 @@ exports.CardKingdomPriceType = new graphql_1.GraphQLObjectType({
         promo: { type: graphql_1.GraphQLBoolean },
         textless: { type: graphql_1.GraphQLBoolean },
         printingId: { type: graphql_1.GraphQLInt },
+        scryfallId: { type: graphql_1.GraphQLString },
         price: { type: graphql_1.GraphQLInt },
         url: { type: graphql_1.GraphQLString },
     }),

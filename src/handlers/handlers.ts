@@ -105,6 +105,28 @@ const RootQuery = new GraphQLObjectType({
                 return await CardKingdomPrice.find(query).exec();
             },
         },
+        cardKingdomPricesByScryfallIds: {
+            type: GraphQLList(CardKingdomPriceType),
+            args: {
+                scryfallIds: { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLString))) }
+            },
+            async resolve(parent, { scryfallIds }) {
+                // Get latest prices only (most recent fetch)
+                const latestFetch = await CardKingdomPrice.findOne().sort({ fetchedAt: -1 }).select('fetchedAt').exec();
+
+                const query: any = {
+                    scryfallId: { $in: scryfallIds },
+                    condition: 'NM',  // Only NM condition
+                    foil: false,      // Non-foil only
+                };
+
+                if (latestFetch) {
+                    query.fetchedAt = latestFetch.fetchedAt;
+                }
+
+                return await CardKingdomPrice.find(query).exec();
+            },
+        },
         me: {
             type: UserType,
             async resolve(parent, args, context) {
