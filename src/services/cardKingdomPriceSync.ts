@@ -36,23 +36,25 @@ export const fetchAndStoreCardKingdomPrices = async (): Promise<void> => {
         for (let i = 0; i < cards.length; i += BATCH_SIZE) {
             const batch = cards.slice(i, i + BATCH_SIZE).map((card: any) => {
                 // Map CardKingdom API fields to our schema
-                // Adjust field mapping based on actual API response
+                const retailPrice = parseFloat(card.price_retail || '0');
+                const isFoil = card.is_foil === 'true' || card.is_foil === true;
+
                 return {
                     name: card.name,
-                    edition: card.edition || card.set_name,
-                    condition: card.condition || 'NM',
-                    language: card.language || 'English',
-                    foil: card.is_foil || card.foil || false,
-                    signed: card.is_signed || card.signed || false,
-                    artistProof: card.is_artist_proof || card.artist_proof || false,
-                    alteredArt: card.is_altered || card.altered_art || false,
-                    misprint: card.is_misprint || card.misprint || false,
-                    promo: card.is_promo || card.promo || false,
-                    textless: card.is_textless || card.textless || false,
-                    printingId: card.printing_id || card.id,
-                    id: card.id || card.ck_id,
-                    price: Math.round((card.price || card.retail_price || 0) * 100), // Convert to cents
-                    url: card.url || `https://www.cardkingdom.com/mtg/${card.name?.toLowerCase().replace(/\s+/g, '-')}`,
+                    edition: card.edition,
+                    condition: 'NM', // CardKingdom doesn't specify condition in API, assume NM
+                    language: 'English',
+                    foil: isFoil,
+                    signed: card.variation?.toLowerCase().includes('signed') || false,
+                    artistProof: card.variation?.toLowerCase().includes('artist proof') || false,
+                    alteredArt: card.variation?.toLowerCase().includes('altered') || false,
+                    misprint: card.variation?.toLowerCase().includes('misprint') || false,
+                    promo: card.variation?.toLowerCase().includes('promo') || false,
+                    textless: card.variation?.toLowerCase().includes('textless') || false,
+                    printingId: card.id,
+                    id: card.id,
+                    price: Math.round(retailPrice * 100), // Convert dollars to cents
+                    url: `https://www.cardkingdom.com/${card.url}`,
                     fetchedAt,
                 };
             });
