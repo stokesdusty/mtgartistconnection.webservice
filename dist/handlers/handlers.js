@@ -108,10 +108,8 @@ const RootQuery = new graphql_1.GraphQLObjectType({
                 scryfallIds: { type: (0, graphql_1.GraphQLNonNull)((0, graphql_1.GraphQLList)((0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString))) }
             },
             async resolve(parent, { scryfallIds }) {
-                console.log('[CardKingdom] Querying by scryfall IDs:', scryfallIds);
                 // Get latest prices only (most recent fetch)
                 const latestFetch = await CardKingdomPrice_1.default.findOne().sort({ fetchedAt: -1 }).select('fetchedAt').exec();
-                console.log('[CardKingdom] Latest fetch:', latestFetch?.fetchedAt);
                 const query = {
                     scryfallId: { $in: scryfallIds },
                     condition: 'NM', // Only NM condition
@@ -120,10 +118,7 @@ const RootQuery = new graphql_1.GraphQLObjectType({
                 if (latestFetch) {
                     query.fetchedAt = latestFetch.fetchedAt;
                 }
-                console.log('[CardKingdom] Query:', JSON.stringify(query));
-                const results = await CardKingdomPrice_1.default.find(query).exec();
-                console.log('[CardKingdom] Results count:', results.length);
-                return results;
+                return await CardKingdomPrice_1.default.find(query).exec();
             },
         },
         me: {
