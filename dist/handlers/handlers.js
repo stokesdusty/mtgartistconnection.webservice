@@ -83,23 +83,23 @@ const RootQuery = new graphql_1.GraphQLObjectType({
                 return await CardPrice_1.default.find({ $or: queries }).exec();
             },
         },
-        cardKingdomPricesByName: {
+        cardKingdomPricesByNames: {
             type: (0, graphql_1.GraphQLList)(schema_1.CardKingdomPriceType),
             args: {
-                name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
-                edition: { type: graphql_1.GraphQLString }
+                names: { type: (0, graphql_1.GraphQLNonNull)((0, graphql_1.GraphQLList)((0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString))) }
             },
-            async resolve(parent, { name, edition }) {
-                const query = { name: new RegExp(`^${name}$`, 'i') };
-                if (edition) {
-                    query.edition = new RegExp(`^${edition}$`, 'i');
-                }
+            async resolve(parent, { names }) {
                 // Get latest prices only (most recent fetch)
                 const latestFetch = await CardKingdomPrice_1.default.findOne().sort({ fetchedAt: -1 }).select('fetchedAt').exec();
+                const query = {
+                    name: { $in: names.map((name) => new RegExp(`^${name}$`, 'i')) },
+                    condition: 'NM', // Only NM condition
+                    foil: false, // Non-foil only
+                };
                 if (latestFetch) {
                     query.fetchedAt = latestFetch.fetchedAt;
                 }
-                return await CardKingdomPrice_1.default.find(query).limit(20).exec();
+                return await CardKingdomPrice_1.default.find(query).exec();
             },
         },
         me: {

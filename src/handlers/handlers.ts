@@ -83,25 +83,26 @@ const RootQuery = new GraphQLObjectType({
                 return await CardPrice.find({ $or: queries }).exec();
             },
         },
-        cardKingdomPricesByName: {
+        cardKingdomPricesByNames: {
             type: GraphQLList(CardKingdomPriceType),
             args: {
-                name: { type: GraphQLNonNull(GraphQLString) },
-                edition: { type: GraphQLString }
+                names: { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLString))) }
             },
-            async resolve(parent, { name, edition }) {
-                const query: any = { name: new RegExp(`^${name}$`, 'i') };
-                if (edition) {
-                    query.edition = new RegExp(`^${edition}$`, 'i');
-                }
-
+            async resolve(parent, { names }) {
                 // Get latest prices only (most recent fetch)
                 const latestFetch = await CardKingdomPrice.findOne().sort({ fetchedAt: -1 }).select('fetchedAt').exec();
+
+                const query: any = {
+                    name: { $in: names.map((name: string) => new RegExp(`^${name}$`, 'i')) },
+                    condition: 'NM',  // Only NM condition
+                    foil: false,      // Non-foil only
+                };
+
                 if (latestFetch) {
                     query.fetchedAt = latestFetch.fetchedAt;
                 }
 
-                return await CardKingdomPrice.find(query).limit(20).exec();
+                return await CardKingdomPrice.find(query).exec();
             },
         },
         me: {
