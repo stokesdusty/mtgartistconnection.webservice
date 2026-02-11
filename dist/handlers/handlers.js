@@ -12,6 +12,7 @@ const SigningEvent_1 = __importDefault(require("../models/SigningEvent"));
 const bcrypt_nodejs_1 = require("bcrypt-nodejs");
 const MapArtistToEvent_1 = __importDefault(require("../models/MapArtistToEvent"));
 const CardPrice_1 = __importDefault(require("../models/CardPrice"));
+const CardKingdomPrice_1 = __importDefault(require("../models/CardKingdomPrice"));
 const ArtistChange_1 = __importDefault(require("../models/ArtistChange"));
 const EventChange_1 = __importDefault(require("../models/EventChange"));
 const auth_1 = require("../middleware/auth");
@@ -80,6 +81,25 @@ const RootQuery = new graphql_1.GraphQLObjectType({
                     number: card.number,
                 }));
                 return await CardPrice_1.default.find({ $or: queries }).exec();
+            },
+        },
+        cardKingdomPricesByName: {
+            type: (0, graphql_1.GraphQLList)(schema_1.CardKingdomPriceType),
+            args: {
+                name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                edition: { type: graphql_1.GraphQLString }
+            },
+            async resolve(parent, { name, edition }) {
+                const query = { name: new RegExp(`^${name}$`, 'i') };
+                if (edition) {
+                    query.edition = new RegExp(`^${edition}$`, 'i');
+                }
+                // Get latest prices only (most recent fetch)
+                const latestFetch = await CardKingdomPrice_1.default.findOne().sort({ fetchedAt: -1 }).select('fetchedAt').exec();
+                if (latestFetch) {
+                    query.fetchedAt = latestFetch.fetchedAt;
+                }
+                return await CardKingdomPrice_1.default.find(query).limit(20).exec();
             },
         },
         me: {

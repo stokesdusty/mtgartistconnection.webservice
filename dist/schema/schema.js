@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ArtistChangeType = exports.MutationResponseType = exports.CardPriceType = exports.MapArtistToEventType = exports.SigningEventType = exports.AuthResponseType = exports.UserType = exports.EmailPreferencesType = exports.ArtistType = void 0;
+exports.ArtistChangeType = exports.MutationResponseType = exports.CardKingdomPriceType = exports.CardPriceType = exports.MapArtistToEventType = exports.SigningEventType = exports.AuthResponseType = exports.UserType = exports.EmailPreferencesType = exports.ArtistType = void 0;
 const graphql_1 = require("graphql");
 exports.ArtistType = new graphql_1.GraphQLObjectType({
     name: "ArtistType",
@@ -87,6 +87,26 @@ exports.CardPriceType = new graphql_1.GraphQLObjectType({
         price_cents_lp_plus: { type: graphql_1.GraphQLInt },
         price_cents_nm: { type: graphql_1.GraphQLInt },
         price_cents_foil: { type: graphql_1.GraphQLInt },
+        url: { type: graphql_1.GraphQLString },
+    }),
+});
+exports.CardKingdomPriceType = new graphql_1.GraphQLObjectType({
+    name: "CardKingdomPriceType",
+    fields: () => ({
+        id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+        name: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        edition: { type: graphql_1.GraphQLString },
+        condition: { type: graphql_1.GraphQLString },
+        language: { type: graphql_1.GraphQLString },
+        foil: { type: graphql_1.GraphQLBoolean },
+        signed: { type: graphql_1.GraphQLBoolean },
+        artistProof: { type: graphql_1.GraphQLBoolean },
+        alteredArt: { type: graphql_1.GraphQLBoolean },
+        misprint: { type: graphql_1.GraphQLBoolean },
+        promo: { type: graphql_1.GraphQLBoolean },
+        textless: { type: graphql_1.GraphQLBoolean },
+        printingId: { type: graphql_1.GraphQLInt },
+        price: { type: graphql_1.GraphQLInt },
         url: { type: graphql_1.GraphQLString },
     }),
 });

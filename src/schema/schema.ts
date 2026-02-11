@@ -95,6 +95,27 @@ export const CardPriceType = new GraphQLObjectType({
     }),
 });
 
+export const CardKingdomPriceType = new GraphQLObjectType({
+    name: "CardKingdomPriceType",
+    fields: () => ({
+        id: { type: GraphQLNonNull(GraphQLID) },
+        name: { type: GraphQLNonNull(GraphQLString) },
+        edition: { type: GraphQLString },
+        condition: { type: GraphQLString },
+        language: { type: GraphQLString },
+        foil: { type: GraphQLBoolean },
+        signed: { type: GraphQLBoolean },
+        artistProof: { type: GraphQLBoolean },
+        alteredArt: { type: GraphQLBoolean },
+        misprint: { type: GraphQLBoolean },
+        promo: { type: GraphQLBoolean },
+        textless: { type: GraphQLBoolean },
+        printingId: { type: GraphQLInt },
+        price: { type: GraphQLInt },
+        url: { type: GraphQLString },
+    }),
+});
+
 export const MutationResponseType = new GraphQLObjectType({
     name: "MutationResponseType",
     fields: () => ({

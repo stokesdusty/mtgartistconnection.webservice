@@ -1,5 +1,5 @@
 import { GraphQLBoolean, GraphQLID, GraphQLInputObjectType, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, AuthResponseType, CardPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, SigningEventType, UserType } from "../schema/schema";
+import { ArtistType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, SigningEventType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
@@ -7,6 +7,7 @@ import SigningEvent from "../models/SigningEvent";
 import { hashSync, compareSync } from "bcrypt-nodejs";
 import MapArtistToEvent from "../models/MapArtistToEvent";
 import CardPrice from "../models/CardPrice";
+import CardKingdomPrice from "../models/CardKingdomPrice";
 import ArtistChange from "../models/ArtistChange";
 import EventChange from "../models/EventChange";
 import { generateToken, requireAuth, requireAdmin } from "../middleware/auth";
@@ -80,6 +81,27 @@ const RootQuery = new GraphQLObjectType({
                 }));
 
                 return await CardPrice.find({ $or: queries }).exec();
+            },
+        },
+        cardKingdomPricesByName: {
+            type: GraphQLList(CardKingdomPriceType),
+            args: {
+                name: { type: GraphQLNonNull(GraphQLString) },
+                edition: { type: GraphQLString }
+            },
+            async resolve(parent, { name, edition }) {
+                const query: any = { name: new RegExp(`^${name}$`, 'i') };
+                if (edition) {
+                    query.edition = new RegExp(`^${edition}$`, 'i');
+                }
+
+                // Get latest prices only (most recent fetch)
+                const latestFetch = await CardKingdomPrice.findOne().sort({ fetchedAt: -1 }).select('fetchedAt').exec();
+                if (latestFetch) {
+                    query.fetchedAt = latestFetch.fetchedAt;
+                }
+
+                return await CardKingdomPrice.find(query).limit(20).exec();
             },
         },
         me: {

@@ -6,6 +6,7 @@ import schema from "./handlers/handlers";
 import cors from "cors";
 import cron from 'node-cron';
 import { startPriceSyncScheduler } from './services/priceSyncService';
+import { startCardKingdomPriceSyncScheduler } from './services/cardKingdomPriceSync';
 import { authMiddleware } from './middleware/auth';
 import { runDailyDigest } from './jobs/dailyDigest';
 import { runDailyEventDigest } from './jobs/dailyEventDigest';
@@ -47,8 +48,9 @@ app.use("/graphql", graphqlHTTP((req) => ({
 
 connectToDatabase()
     .then(() => {
-        // Start the daily price sync scheduler
+        // Start the daily price sync schedulers
         startPriceSyncScheduler();
+        startCardKingdomPriceSyncScheduler();
 
         // Start the daily digest schedulers
         // Run artist digest daily at 8 PM (20:00) in server timezone

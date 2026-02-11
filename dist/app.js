@@ -11,6 +11,7 @@ const handlers_1 = __importDefault(require("./handlers/handlers"));
 const cors_1 = __importDefault(require("cors"));
 const node_cron_1 = __importDefault(require("node-cron"));
 const priceSyncService_1 = require("./services/priceSyncService");
+const cardKingdomPriceSync_1 = require("./services/cardKingdomPriceSync");
 const auth_1 = require("./middleware/auth");
 const dailyDigest_1 = require("./jobs/dailyDigest");
 const dailyEventDigest_1 = require("./jobs/dailyEventDigest");
@@ -49,8 +50,9 @@ app.use("/graphql", (0, express_graphql_1.graphqlHTTP)((req) => ({
 })));
 (0, connection_1.connectToDatabase)()
     .then(() => {
-    // Start the daily price sync scheduler
+    // Start the daily price sync schedulers
     (0, priceSyncService_1.startPriceSyncScheduler)();
+    (0, cardKingdomPriceSync_1.startCardKingdomPriceSyncScheduler)();
     // Start the daily digest schedulers
     // Run artist digest daily at 8 PM (20:00) in server timezone
     node_cron_1.default.schedule('0 20 * * *', async () => {
