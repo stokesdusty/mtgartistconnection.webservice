@@ -7,7 +7,8 @@ export interface EventData {
   url?: string;
   artists?: string[];
   changeType?: 'new_event' | 'artist_added';
-  artistAdded?: string;
+  artistAdded?: string; // For backwards compatibility
+  artistsAdded?: string[]; // For multiple artist additions
 }
 
 export const generateEventDigestEmail = (events: EventData[]): string => {
@@ -25,8 +26,11 @@ export const generateEventDigestEmail = (events: EventData[]): string => {
       : `${formatDate(event.startDate)} - ${formatDate(event.endDate)}`;
 
     const isArtistAddition = event.changeType === 'artist_added';
-    const changeLabel = isArtistAddition
-      ? `<span style="display: inline-block; background-color: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-left: 8px;">NEW ARTIST ADDED</span>`
+    const newArtistsSet = new Set(event.artistsAdded || (event.artistAdded ? [event.artistAdded] : []));
+    const artistCount = newArtistsSet.size;
+
+    const changeLabel = isArtistAddition && artistCount > 0
+      ? `<span style="display: inline-block; background-color: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-left: 8px;">${artistCount === 1 ? 'NEW ARTIST ADDED' : `${artistCount} NEW ARTISTS ADDED`}</span>`
       : '';
 
     const artistsList = event.artists && event.artists.length > 0
@@ -37,7 +41,7 @@ export const generateEventDigestEmail = (events: EventData[]): string => {
           </p>
           <div style="display: flex; flex-wrap: wrap; gap: 6px;">
             ${event.artists.map(artist => {
-              const isNewArtist = artist === event.artistAdded;
+              const isNewArtist = newArtistsSet.has(artist);
               return `
                 <span style="display: inline-block; background-color: ${isNewArtist ? '#fef3c7' : '#f0f9f4'}; border: 1px solid ${isNewArtist ? '#f59e0b' : '#507A60'}; color: ${isNewArtist ? '#92400e' : '#2d4a36'}; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: ${isNewArtist ? '700' : '500'};">
                   ${artist}${isNewArtist ? ' ✨' : ''}

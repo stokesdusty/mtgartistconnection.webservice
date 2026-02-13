@@ -34,31 +34,46 @@ export const runDailyEventDigest = async (): Promise<void> => {
       artistsByEventId[eventId].push(mapping.artistName);
     });
 
-    // Group changes by event and state
-    const eventsByState: { [state: string]: EventData[] } = {};
-
+    // Group changes by event ID first to combine multiple changes for same event
+    const changesByEventId: { [eventId: string]: any[] } = {};
     eventChanges.forEach((change) => {
       if (!change.state) return; // Skip events without state
 
-      if (!eventsByState[change.state]) {
-        eventsByState[change.state] = [];
+      if (!changesByEventId[change.eventId]) {
+        changesByEventId[change.eventId] = [];
+      }
+      changesByEventId[change.eventId].push(change);
+    });
+
+    // Now create combined event data by state
+    const eventsByState: { [state: string]: EventData[] } = {};
+
+    Object.entries(changesByEventId).forEach(([eventId, changes]) => {
+      // Use the first change for basic event info
+      const firstChange = changes[0];
+      const state = firstChange.state;
+
+      if (!eventsByState[state]) {
+        eventsByState[state] = [];
       }
 
-      // @ts-ignore
-      const changeType = change.changeType || 'new_event';
-      // @ts-ignore
-      const artistName = change.artistName;
+      // Determine if this is a new event or has artist additions
+      const hasNewEvent = changes.some((c: any) => (c.changeType || 'new_event') === 'new_event');
+      const artistAdditions = changes
+        .filter((c: any) => c.changeType === 'artist_added')
+        .map((c: any) => c.artistName)
+        .filter(Boolean);
 
-      eventsByState[change.state].push({
-        eventName: change.eventName,
-        city: change.city,
-        state: change.state,
-        startDate: change.startDate,
-        endDate: change.endDate,
-        url: change.url,
-        artists: artistsByEventId[change.eventId] || [],
-        changeType: changeType,
-        artistAdded: changeType === 'artist_added' ? artistName : undefined,
+      eventsByState[state].push({
+        eventName: firstChange.eventName,
+        city: firstChange.city,
+        state: state,
+        startDate: firstChange.startDate,
+        endDate: firstChange.endDate,
+        url: firstChange.url,
+        artists: artistsByEventId[eventId] || [],
+        changeType: hasNewEvent ? 'new_event' : 'artist_added',
+        artistsAdded: artistAdditions,
       });
     });
 
@@ -109,7 +124,7 @@ export const runDailyEventDigest = async (): Promise<void> => {
 
       // Generate email
       const emailHtml = generateEventDigestEmail(userEvents);
-      const eventCount = userEvents.length;
+      const eventCount = userEvents.length; // Already unique events since we combined them
       const hasArtistAdditions = userEvents.some(e => e.changeType === 'artist_added');
       const hasNewEvents = userEvents.some(e => e.changeType === 'new_event' || !e.changeType);
 
@@ -121,7 +136,7 @@ export const runDailyEventDigest = async (): Promise<void> => {
       } else if (hasArtistAdditions) {
         subject = eventCount === 1
           ? 'Artist Added to Event in Your Area'
-          : 'Artists Added to Events in Your Area';
+          : `Artists Added to Events in Your Area`;
       } else {
         subject = eventCount === 1
           ? 'New Signing Event in Your Area'
