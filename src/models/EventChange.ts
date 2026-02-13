@@ -31,6 +31,16 @@ const EventChangeSchema = new Schema({
     type: String,
     required: false,
   },
+  changeType: {
+    type: String,
+    required: true,
+    enum: ['new_event', 'artist_added'],
+    default: 'new_event',
+  },
+  // For changeType='artist_added'
+  artistName: {
+    type: String,
+  },
   timestamp: {
     type: Date,
     default: Date.now,

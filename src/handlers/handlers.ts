@@ -465,6 +465,7 @@ const mutations = new GraphQLObjectType({
                             startDate: new Date(startDate),
                             endDate: new Date(endDate),
                             url: url || null,
+                            changeType: 'new_event',
                             timestamp: new Date(),
                             processed: false
                         });
@@ -497,6 +498,7 @@ const mutations = new GraphQLObjectType({
                     // Track change for email digest
                     const event = await SigningEvent.findById(eventId);
                     if (event) {
+                        // Create ArtistChange for users following this artist
                         await ArtistChange.create({
                             artistName: artistName,
                             changeType: 'added_to_event',
@@ -508,6 +510,23 @@ const mutations = new GraphQLObjectType({
                             timestamp: new Date(),
                             processed: false
                         });
+
+                        // Create EventChange for users monitoring this state
+                        if (event.state) {
+                            await EventChange.create({
+                                eventId: event._id,
+                                eventName: event.name,
+                                city: event.city,
+                                state: event.state,
+                                startDate: event.startDate,
+                                endDate: event.endDate,
+                                url: event.url || null,
+                                changeType: 'artist_added',
+                                artistName: artistName,
+                                timestamp: new Date(),
+                                processed: false
+                            });
+                        }
                     }
 
                     return result;

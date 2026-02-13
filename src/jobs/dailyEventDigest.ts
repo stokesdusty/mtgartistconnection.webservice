@@ -34,7 +34,7 @@ export const runDailyEventDigest = async (): Promise<void> => {
       artistsByEventId[eventId].push(mapping.artistName);
     });
 
-    // Group events by state
+    // Group changes by event and state
     const eventsByState: { [state: string]: EventData[] } = {};
 
     eventChanges.forEach((change) => {
@@ -44,6 +44,11 @@ export const runDailyEventDigest = async (): Promise<void> => {
         eventsByState[change.state] = [];
       }
 
+      // @ts-ignore
+      const changeType = change.changeType || 'new_event';
+      // @ts-ignore
+      const artistName = change.artistName;
+
       eventsByState[change.state].push({
         eventName: change.eventName,
         city: change.city,
@@ -52,6 +57,8 @@ export const runDailyEventDigest = async (): Promise<void> => {
         endDate: change.endDate,
         url: change.url,
         artists: artistsByEventId[change.eventId] || [],
+        changeType: changeType,
+        artistAdded: changeType === 'artist_added' ? artistName : undefined,
       });
     });
 
@@ -103,9 +110,23 @@ export const runDailyEventDigest = async (): Promise<void> => {
       // Generate email
       const emailHtml = generateEventDigestEmail(userEvents);
       const eventCount = userEvents.length;
-      const subject = eventCount === 1
-        ? 'New Signing Event in Your Area'
-        : `${eventCount} New Signing Events in Your Area`;
+      const hasArtistAdditions = userEvents.some(e => e.changeType === 'artist_added');
+      const hasNewEvents = userEvents.some(e => e.changeType === 'new_event' || !e.changeType);
+
+      let subject = '';
+      if (hasNewEvents && hasArtistAdditions) {
+        subject = eventCount === 1
+          ? 'Signing Event Update in Your Area'
+          : `${eventCount} Signing Event Updates in Your Area`;
+      } else if (hasArtistAdditions) {
+        subject = eventCount === 1
+          ? 'Artist Added to Event in Your Area'
+          : 'Artists Added to Events in Your Area';
+      } else {
+        subject = eventCount === 1
+          ? 'New Signing Event in Your Area'
+          : `${eventCount} New Signing Events in Your Area`;
+      }
 
       // @ts-ignore
       emailPromises.push(sendEmail(user.email, subject, emailHtml));

@@ -6,6 +6,8 @@ export interface EventData {
   endDate: Date;
   url?: string;
   artists?: string[];
+  changeType?: 'new_event' | 'artist_added';
+  artistAdded?: string;
 }
 
 export const generateEventDigestEmail = (events: EventData[]): string => {
@@ -22,6 +24,11 @@ export const generateEventDigestEmail = (events: EventData[]): string => {
       ? formatDate(event.startDate)
       : `${formatDate(event.startDate)} - ${formatDate(event.endDate)}`;
 
+    const isArtistAddition = event.changeType === 'artist_added';
+    const changeLabel = isArtistAddition
+      ? `<span style="display: inline-block; background-color: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-left: 8px;">NEW ARTIST ADDED</span>`
+      : '';
+
     const artistsList = event.artists && event.artists.length > 0
       ? `
         <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e0e0e0;">
@@ -29,11 +36,14 @@ export const generateEventDigestEmail = (events: EventData[]): string => {
             Artists Attending:
           </p>
           <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-            ${event.artists.map(artist => `
-              <span style="display: inline-block; background-color: #f0f9f4; border: 1px solid #507A60; color: #2d4a36; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">
-                ${artist}
-              </span>
-            `).join('')}
+            ${event.artists.map(artist => {
+              const isNewArtist = artist === event.artistAdded;
+              return `
+                <span style="display: inline-block; background-color: ${isNewArtist ? '#fef3c7' : '#f0f9f4'}; border: 1px solid ${isNewArtist ? '#f59e0b' : '#507A60'}; color: ${isNewArtist ? '#92400e' : '#2d4a36'}; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: ${isNewArtist ? '700' : '500'};">
+                  ${artist}${isNewArtist ? ' ✨' : ''}
+                </span>
+              `;
+            }).join('')}
           </div>
         </div>
       `
@@ -42,7 +52,7 @@ export const generateEventDigestEmail = (events: EventData[]): string => {
     return `
       <div style="background-color: #f9f9f9; border-left: 4px solid #507A60; padding: 16px; margin-bottom: 16px; border-radius: 4px;">
         <h3 style="margin: 0 0 8px 0; color: #2d4a36; font-size: 18px; font-weight: 600;">
-          ${event.eventName}
+          ${event.eventName} ${changeLabel}
         </h3>
         <p style="margin: 4px 0; color: #555; font-size: 14px;">
           <strong>Location:</strong> ${event.city}, ${event.state}
