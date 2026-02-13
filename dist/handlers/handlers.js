@@ -424,6 +424,7 @@ const mutations = new graphql_1.GraphQLObjectType({
                             startDate: new Date(startDate),
                             endDate: new Date(endDate),
                             url: url || null,
+                            changeType: 'new_event',
                             timestamp: new Date(),
                             processed: false
                         });
@@ -455,6 +456,7 @@ const mutations = new graphql_1.GraphQLObjectType({
                     // Track change for email digest
                     const event = await SigningEvent_1.default.findById(eventId);
                     if (event) {
+                        // Create ArtistChange for users following this artist
                         await ArtistChange_1.default.create({
                             artistName: artistName,
                             changeType: 'added_to_event',
@@ -466,6 +468,22 @@ const mutations = new graphql_1.GraphQLObjectType({
                             timestamp: new Date(),
                             processed: false
                         });
+                        // Create EventChange for users monitoring this state
+                        if (event.state) {
+                            await EventChange_1.default.create({
+                                eventId: event._id,
+                                eventName: event.name,
+                                city: event.city,
+                                state: event.state,
+                                startDate: event.startDate,
+                                endDate: event.endDate,
+                                url: event.url || null,
+                                changeType: 'artist_added',
+                                artistName: artistName,
+                                timestamp: new Date(),
+                                processed: false
+                            });
+                        }
                     }
                     return result;
                 }
