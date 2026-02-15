@@ -2,7 +2,7 @@ import axios from 'axios';
 import Artist from '../models/Artist';
 import User from '../models/User';
 import { sendEmail } from '../services/emailService';
-import { generateMissingArtistsEmail } from '../templates/missingArtistsEmail';
+import { generateScryfallSyncEmail } from '../templates/missingArtistsEmail';
 
 const SCRYFALL_ARTISTS_URL = 'https://api.scryfall.com/catalog/artist-names';
 
@@ -23,60 +23,51 @@ export const runScryfallArtistSync = async (): Promise<void> => {
     const scryfallArtists = response.data.data;
     console.log(`Fetched ${scryfallArtists.length} artist names from Scryfall`);
 
-    // 2. Get all artists from our database
-    const dbArtists = await Artist.find({}, { name: 1, scryfall_name: 1 });
-    console.log(`Found ${dbArtists.length} artists in database`);
+    // 2. Get all artists from our database that have a scryfall_name
+    const dbArtists = await Artist.find(
+      { scryfall_name: { $exists: true, $ne: null, $nin: ['', null] } },
+      { name: 1, scryfall_name: 1 }
+    );
+    console.log(`Found ${dbArtists.length} artists with scryfall_name in database`);
 
-    // 3. Build maps for matching
-    // Map lowercase name -> artist document (for artists without scryfall_name set)
-    const nameToArtist = new Map<string, typeof dbArtists[0]>();
-    const knownScryfallNames = new Set<string>();
+    // 3. Build sets for comparison
+    const scryfallNamesLower = new Set(scryfallArtists.map(name => name.toLowerCase()));
+    const dbScryfallNamesLower = new Set<string>();
 
     for (const artist of dbArtists) {
-      // If scryfall_name is already set, add it to known names
       if (artist.scryfall_name) {
-        knownScryfallNames.add(artist.scryfall_name.toLowerCase());
-      } else {
-        // Otherwise, map by name for potential matching
-        nameToArtist.set(artist.name.toLowerCase(), artist);
+        dbScryfallNamesLower.add(artist.scryfall_name.toLowerCase());
       }
     }
 
-    // 4. Find artists from Scryfall that we don't have, and update matches
-    const missingArtists: string[] = [];
-    let matchedCount = 0;
-
+    // 4. Find Scryfall artists not in our DB (by scryfall_name)
+    const missingFromDb: string[] = [];
     for (const scryfallName of scryfallArtists) {
-      const lowerName = scryfallName.toLowerCase();
-
-      // Already have this scryfall_name recorded
-      if (knownScryfallNames.has(lowerName)) {
-        continue;
-      }
-
-      // Check if we have an artist with a matching name (case-insensitive)
-      const matchedArtist = nameToArtist.get(lowerName);
-      if (matchedArtist) {
-        // Update the artist's scryfall_name
-        await Artist.updateOne(
-          { _id: matchedArtist._id },
-          { $set: { scryfall_name: scryfallName } }
-        );
-        matchedCount++;
-        // Remove from map so we don't match again
-        nameToArtist.delete(lowerName);
-      } else {
-        // No match found - this is a missing artist
-        missingArtists.push(scryfallName);
+      if (!dbScryfallNamesLower.has(scryfallName.toLowerCase())) {
+        missingFromDb.push(scryfallName);
       }
     }
 
-    console.log(`Updated ${matchedCount} artists with scryfall_name`);
-    console.log(`Found ${missingArtists.length} artists not in database`);
+    // 5. Find our artists not on Scryfall (exclude "unknown")
+    const notOnScryfall: { name: string; scryfall_name: string }[] = [];
+    for (const artist of dbArtists) {
+      if (
+        artist.scryfall_name &&
+        artist.scryfall_name.toLowerCase() !== 'unknown' &&
+        !scryfallNamesLower.has(artist.scryfall_name.toLowerCase())
+      ) {
+        notOnScryfall.push({
+          name: artist.name,
+          scryfall_name: artist.scryfall_name
+        });
+      }
+    }
 
-    // 5. If there are missing artists, email the admin
-    if (missingArtists.length > 0) {
-      // Find admin users to notify
+    console.log(`Found ${missingFromDb.length} Scryfall artists not in database`);
+    console.log(`Found ${notOnScryfall.length} database artists not on Scryfall`);
+
+    // 6. Email the admin if there's anything to report
+    if (missingFromDb.length > 0 || notOnScryfall.length > 0) {
       const adminUsers = await User.find({ role: 'admin' });
 
       if (adminUsers.length === 0) {
@@ -84,10 +75,17 @@ export const runScryfallArtistSync = async (): Promise<void> => {
         return;
       }
 
-      // Sort alphabetically for easier reading
-      missingArtists.sort((a, b) => a.localeCompare(b));
+      // Sort alphabetically
+      missingFromDb.sort((a, b) => a.localeCompare(b));
+      notOnScryfall.sort((a, b) => a.name.localeCompare(b.name));
 
-      const html = generateMissingArtistsEmail(missingArtists, scryfallArtists.length, dbArtists.length);
+      const html = generateScryfallSyncEmail(
+        missingFromDb,
+        notOnScryfall,
+        scryfallArtists.length,
+        dbArtists.length
+      );
+
       const today = new Date().toLocaleDateString('en-US', {
         month: 'long',
         day: 'numeric',
@@ -109,9 +107,9 @@ export const runScryfallArtistSync = async (): Promise<void> => {
         }
       }
 
-      console.log(`Scryfall artist sync complete: ${emailsSent} emails sent with ${missingArtists.length} missing artists`);
+      console.log(`Scryfall artist sync complete: ${emailsSent} emails sent`);
     } else {
-      console.log('Scryfall artist sync complete: No missing artists found');
+      console.log('Scryfall artist sync complete: No discrepancies found');
     }
 
   } catch (error) {

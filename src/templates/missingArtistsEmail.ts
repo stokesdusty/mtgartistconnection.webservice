@@ -1,11 +1,47 @@
-export const generateMissingArtistsEmail = (
-  missingArtists: string[],
+interface DbArtist {
+  name: string;
+  scryfall_name: string;
+}
+
+export const generateScryfallSyncEmail = (
+  missingFromDb: string[],
+  notOnScryfall: DbArtist[],
   scryfallTotal: number,
   dbTotal: number
 ): string => {
-  const artistList = missingArtists
+  const missingFromDbList = missingFromDb
     .map(name => `<li style="margin-bottom: 5px;">${name}</li>`)
     .join('');
+
+  const notOnScryfallList = notOnScryfall
+    .map(artist => `<li style="margin-bottom: 5px;"><strong>${artist.name}</strong> (scryfall_name: ${artist.scryfall_name})</li>`)
+    .join('');
+
+  const missingFromDbSection = missingFromDb.length > 0 ? `
+    <h2 style="color: #507A60; margin-bottom: 15px;">Scryfall Artists Not in Your Database</h2>
+    <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+      The following ${missingFromDb.length.toLocaleString()} artist names from Scryfall don't have a matching
+      <code>scryfall_name</code> in your database. These may be new artists or ones you haven't mapped yet.
+    </p>
+    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 10px; margin-bottom: 25px;">
+      <ul style="margin: 0; padding-left: 20px; font-size: 14px;">
+        ${missingFromDbList}
+      </ul>
+    </div>
+  ` : '';
+
+  const notOnScryfallSection = notOnScryfall.length > 0 ? `
+    <h2 style="color: #507A60; margin-bottom: 15px;">Your Artists Not Found on Scryfall</h2>
+    <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+      The following ${notOnScryfall.length.toLocaleString()} artists in your database have a <code>scryfall_name</code>
+      that doesn't match any name in Scryfall's list. This may indicate a typo or an artist who has been removed.
+    </p>
+    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
+      <ul style="margin: 0; padding-left: 20px; font-size: 14px;">
+        ${notOnScryfallList}
+      </ul>
+    </div>
+  ` : '';
 
   return `
     <!DOCTYPE html>
@@ -25,26 +61,14 @@ export const generateMissingArtistsEmail = (
           <h3 style="margin: 0 0 10px 0; color: #507A60;">Summary</h3>
           <ul style="margin: 0; padding-left: 20px; color: #555;">
             <li>Scryfall artists: <strong>${scryfallTotal.toLocaleString()}</strong></li>
-            <li>Database artists: <strong>${dbTotal.toLocaleString()}</strong></li>
-            <li>Missing artists: <strong>${missingArtists.length.toLocaleString()}</strong></li>
+            <li>Database artists (with scryfall_name): <strong>${dbTotal.toLocaleString()}</strong></li>
+            <li>Scryfall artists not in DB: <strong>${missingFromDb.length.toLocaleString()}</strong></li>
+            <li>DB artists not on Scryfall: <strong>${notOnScryfall.length.toLocaleString()}</strong></li>
           </ul>
         </div>
 
-        <h2 style="color: #507A60; margin-bottom: 15px;">Artists Not Found in Database</h2>
-        <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
-          The following ${missingArtists.length.toLocaleString()} artist names from Scryfall don't match any artist name
-          or scryfall_name in your database. Some may be formatting differences (e.g., "John Avon" vs "John D. Avon").
-        </p>
-        <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
-          To reduce false positives, add the <code>scryfall_name</code> field to existing artists where the
-          naming differs from your database.
-        </p>
-
-        <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
-          <ul style="margin: 0; padding-left: 20px; font-size: 14px;">
-            ${artistList}
-          </ul>
-        </div>
+        ${missingFromDbSection}
+        ${notOnScryfallSection}
 
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #999;">
           <p>

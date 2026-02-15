@@ -76,8 +76,8 @@ connectToDatabase()
         });
         console.log('Daily event digest cron job scheduled for 8 PM daily');
 
-        // Run Scryfall artist sync weekly on Sunday at 9 AM
-        cron.schedule('0 9 * * 0', async () => {
+        // Run Scryfall artist sync daily at 4 PM PST (midnight UTC)
+        cron.schedule('0 0 * * *', async () => {
             console.log('Triggering Scryfall artist sync job...');
             try {
                 await runScryfallArtistSync();
@@ -85,7 +85,7 @@ connectToDatabase()
                 console.error('Scryfall artist sync job failed:', error);
             }
         });
-        console.log('Scryfall artist sync cron job scheduled for Sunday 9 AM weekly');
+        console.log('Scryfall artist sync cron job scheduled for 4 PM PST daily');
 
         return app.listen(process.env.PORT,
         () => console.log(`Server Open on Port ${process.env.PORT}`)
