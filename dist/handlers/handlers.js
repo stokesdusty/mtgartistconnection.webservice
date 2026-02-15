@@ -226,9 +226,10 @@ const mutations = new graphql_1.GraphQLObjectType({
                 location: { type: graphql_1.GraphQLString },
                 bluesky: { type: graphql_1.GraphQLString },
                 omalink: { type: graphql_1.GraphQLString },
-                inprnt: { type: graphql_1.GraphQLString }
+                inprnt: { type: graphql_1.GraphQLString },
+                alternate_names: { type: graphql_1.GraphQLString }
             },
-            async resolve(parent, { name, email, artistProofs, facebook, haveSignature, instagram, patreon, signing, signingComment, twitter, url, youtube, mountainmage, markssignatureservice, filename, artstation, location, bluesky, omalink, inprnt }, context) {
+            async resolve(parent, { name, email, artistProofs, facebook, haveSignature, instagram, patreon, signing, signingComment, twitter, url, youtube, mountainmage, markssignatureservice, filename, artstation, location, bluesky, omalink, inprnt, alternate_names }, context) {
                 // Require admin privileges
                 (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
                 let existingArtist;
@@ -256,7 +257,8 @@ const mutations = new graphql_1.GraphQLObjectType({
                         location,
                         bluesky,
                         omalink,
-                        inprnt
+                        inprnt,
+                        alternate_names
                     });
                     return await artist.save();
                 }
@@ -353,6 +355,7 @@ const mutations = new graphql_1.GraphQLObjectType({
                 markssignatureservice: { type: graphql_1.GraphQLString },
                 omalink: { type: graphql_1.GraphQLString },
                 inprnt: { type: graphql_1.GraphQLString },
+                alternate_names: { type: graphql_1.GraphQLString },
             },
             async resolve(parent, args, context) {
                 // Require admin privileges

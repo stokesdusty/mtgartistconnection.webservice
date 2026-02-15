@@ -66,6 +66,9 @@ const artistSchema = new mongoose_1.Schema({
     },
     scryfall_name: {
         type: String
+    },
+    alternate_names: {
+        type: String
     }
 });
 exports.default = (0, mongoose_1.model)("Artist", artistSchema);

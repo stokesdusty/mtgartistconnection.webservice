@@ -27,27 +27,51 @@ export const runScryfallArtistSync = async (): Promise<void> => {
     const dbArtists = await Artist.find({}, { name: 1, scryfall_name: 1 });
     console.log(`Found ${dbArtists.length} artists in database`);
 
-    // 3. Build a set of known names for fast lookup
-    // Include both the artist's name and their scryfall_name (if set)
-    const knownNames = new Set<string>();
-    for (const artist of dbArtists) {
-      // Add the artist's name (lowercase for case-insensitive matching)
-      knownNames.add(artist.name.toLowerCase());
+    // 3. Build maps for matching
+    // Map lowercase name -> artist document (for artists without scryfall_name set)
+    const nameToArtist = new Map<string, typeof dbArtists[0]>();
+    const knownScryfallNames = new Set<string>();
 
-      // Add their scryfall_name if it exists
+    for (const artist of dbArtists) {
+      // If scryfall_name is already set, add it to known names
       if (artist.scryfall_name) {
-        knownNames.add(artist.scryfall_name.toLowerCase());
+        knownScryfallNames.add(artist.scryfall_name.toLowerCase());
+      } else {
+        // Otherwise, map by name for potential matching
+        nameToArtist.set(artist.name.toLowerCase(), artist);
       }
     }
 
-    // 4. Find artists from Scryfall that we don't have
+    // 4. Find artists from Scryfall that we don't have, and update matches
     const missingArtists: string[] = [];
+    let matchedCount = 0;
+
     for (const scryfallName of scryfallArtists) {
-      if (!knownNames.has(scryfallName.toLowerCase())) {
+      const lowerName = scryfallName.toLowerCase();
+
+      // Already have this scryfall_name recorded
+      if (knownScryfallNames.has(lowerName)) {
+        continue;
+      }
+
+      // Check if we have an artist with a matching name (case-insensitive)
+      const matchedArtist = nameToArtist.get(lowerName);
+      if (matchedArtist) {
+        // Update the artist's scryfall_name
+        await Artist.updateOne(
+          { _id: matchedArtist._id },
+          { $set: { scryfall_name: scryfallName } }
+        );
+        matchedCount++;
+        // Remove from map so we don't match again
+        nameToArtist.delete(lowerName);
+      } else {
+        // No match found - this is a missing artist
         missingArtists.push(scryfallName);
       }
     }
 
+    console.log(`Updated ${matchedCount} artists with scryfall_name`);
     console.log(`Found ${missingArtists.length} artists not in database`);
 
     // 5. If there are missing artists, email the admin

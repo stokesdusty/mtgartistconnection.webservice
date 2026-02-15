@@ -232,7 +232,8 @@ const mutations = new GraphQLObjectType({
                 location: { type: GraphQLString },
                 bluesky: { type: GraphQLString },
                 omalink: { type: GraphQLString },
-                inprnt: { type: GraphQLString }
+                inprnt: { type: GraphQLString },
+                alternate_names: { type: GraphQLString }
             },
             async resolve(
                 parent,
@@ -256,7 +257,8 @@ const mutations = new GraphQLObjectType({
                     location,
                     bluesky,
                     omalink,
-                    inprnt
+                    inprnt,
+                    alternate_names
                 },
                 context
                 ) {
@@ -288,7 +290,8 @@ const mutations = new GraphQLObjectType({
                             location,
                             bluesky,
                             omalink,
-                            inprnt
+                            inprnt,
+                            alternate_names
                         });
                     return await artist.save();
                 } catch (err) {
@@ -384,6 +387,7 @@ const mutations = new GraphQLObjectType({
                 markssignatureservice: { type: GraphQLString },
                 omalink: { type: GraphQLString },
                 inprnt: { type: GraphQLString },
+                alternate_names: { type: GraphQLString },
             },
             async resolve(parent, args, context) {
                 // Require admin privileges

@@ -25,7 +25,8 @@ exports.ArtistType = new graphql_1.GraphQLObjectType({
         location: { type: graphql_1.GraphQLString },
         bluesky: { type: graphql_1.GraphQLString },
         omalink: { type: graphql_1.GraphQLString },
-        inprnt: { type: graphql_1.GraphQLString }
+        inprnt: { type: graphql_1.GraphQLString },
+        alternate_names: { type: graphql_1.GraphQLString }
     }),
 });
 exports.EmailPreferencesType = new graphql_1.GraphQLObjectType({

@@ -65,6 +65,9 @@ const artistSchema:Schema = new Schema({
     },
     scryfall_name: {
         type: String
+    },
+    alternate_names: {
+        type: String
     }
 });
 
