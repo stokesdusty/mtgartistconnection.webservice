@@ -10,6 +10,7 @@ import { startCardKingdomPriceSyncScheduler } from './services/cardKingdomPriceS
 import { authMiddleware } from './middleware/auth';
 import { runDailyDigest } from './jobs/dailyDigest';
 import { runDailyEventDigest } from './jobs/dailyEventDigest';
+import { runScryfallArtistSync } from './jobs/scryfallArtistSync';
 
 // Dotenv config
 config();
@@ -74,6 +75,17 @@ connectToDatabase()
             }
         });
         console.log('Daily event digest cron job scheduled for 8 PM daily');
+
+        // Run Scryfall artist sync weekly on Sunday at 9 AM
+        cron.schedule('0 9 * * 0', async () => {
+            console.log('Triggering Scryfall artist sync job...');
+            try {
+                await runScryfallArtistSync();
+            } catch (error) {
+                console.error('Scryfall artist sync job failed:', error);
+            }
+        });
+        console.log('Scryfall artist sync cron job scheduled for Sunday 9 AM weekly');
 
         return app.listen(process.env.PORT,
         () => console.log(`Server Open on Port ${process.env.PORT}`)
