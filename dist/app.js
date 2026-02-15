@@ -15,6 +15,7 @@ const cardKingdomPriceSync_1 = require("./services/cardKingdomPriceSync");
 const auth_1 = require("./middleware/auth");
 const dailyDigest_1 = require("./jobs/dailyDigest");
 const dailyEventDigest_1 = require("./jobs/dailyEventDigest");
+const scryfallArtistSync_1 = require("./jobs/scryfallArtistSync");
 // Dotenv config
 (0, dotenv_1.config)();
 const app = (0, express_1.default)();
@@ -76,6 +77,17 @@ app.use("/graphql", (0, express_graphql_1.graphqlHTTP)((req) => ({
         }
     });
     console.log('Daily event digest cron job scheduled for 8 PM daily');
+    // Run Scryfall artist sync weekly on Sunday at 9 AM
+    node_cron_1.default.schedule('0 9 * * 0', async () => {
+        console.log('Triggering Scryfall artist sync job...');
+        try {
+            await (0, scryfallArtistSync_1.runScryfallArtistSync)();
+        }
+        catch (error) {
+            console.error('Scryfall artist sync job failed:', error);
+        }
+    });
+    console.log('Scryfall artist sync cron job scheduled for Sunday 9 AM weekly');
     return app.listen(process.env.PORT, () => console.log(`Server Open on Port ${process.env.PORT}`));
 })
     .catch(err => console.log(err));
