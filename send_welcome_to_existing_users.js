@@ -53,7 +53,7 @@ async function sendWelcomeToAllUsers() {
     let failCount = 0;
     const failedEmails = [];
 
-    // Send emails with a small delay to avoid rate limiting
+    // Send emails with a delay to avoid rate limiting
     for (let i = 0; i < users.length; i++) {
       const user = users[i];
 
@@ -62,12 +62,21 @@ async function sendWelcomeToAllUsers() {
         successCount++;
         console.log(`[${i + 1}/${users.length}] ✓ Sent to ${user.email}`);
 
-        // Small delay to avoid overwhelming the email service (500ms)
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Longer delay to avoid Gmail rate limiting (2 seconds between emails)
+        if (i < users.length - 1) {
+          console.log('Waiting 2 seconds before next email...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
       } catch (error) {
         failCount++;
         failedEmails.push(user.email);
         console.error(`[${i + 1}/${users.length}] ✗ Failed to send to ${user.email}:`, error.message);
+
+        // Wait even longer after a failure before retrying next email
+        if (i < users.length - 1) {
+          console.log('Error occurred, waiting 5 seconds before next email...');
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
       }
     }
 
