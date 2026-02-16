@@ -24,7 +24,7 @@
     "typescript": "^5.1.6"
   },
   "dependencies": {
-    "@types/nodemailer": "^7.0.9",
+    "@aws-sdk/client-ses": "^3.990.0",
     "axios": "^1.13.4",
     "bcrypt-nodejs": "^0.0.3",
     "cors": "^2.8.5",
