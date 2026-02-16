@@ -11,6 +11,7 @@ import CardKingdomPrice from "../models/CardKingdomPrice";
 import ArtistChange from "../models/ArtistChange";
 import EventChange from "../models/EventChange";
 import { generateToken, requireAuth, requireAdmin } from "../middleware/auth";
+import { sendWelcomeEmail } from "../services/emailService";
 
 type DocumentType = Document<any, any, any>;
 
@@ -170,6 +171,11 @@ const mutations = new GraphQLObjectType({
                     // Generate JWT token with user role
                     // @ts-ignore
                     const token = generateToken(savedUser._id.toString(), savedUser.role);
+
+                    // Send welcome email (async, don't wait for it)
+                    sendWelcomeEmail(email).catch(err => {
+                        console.error('Failed to send welcome email:', err);
+                    });
 
                     return {
                         token,

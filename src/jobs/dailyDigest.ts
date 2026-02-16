@@ -40,13 +40,6 @@ export const runDailyDigest = async (): Promise<void> => {
       'emailPreferences.artistUpdates': true
     };
 
-    // TESTING MODE: Only send emails to admin users
-    // Remove or comment out these 3 lines when ready for all users
-    if (process.env.NODE_ENV === 'production') {
-      query.role = 'admin';
-      console.log('TESTING MODE: Only sending emails to admin users');
-    }
-
     const allFollowers = await User.find(query);
     console.log(`Found ${allFollowers.length} total users following artists with changes`);
 

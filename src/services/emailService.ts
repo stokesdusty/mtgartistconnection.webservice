@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { generateWelcomeEmail } from '../templates/welcomeEmail';
 
 // Configure transporter (use environment variables for credentials)
 const transporter = nodemailer.createTransport({
@@ -25,5 +26,18 @@ export const sendEmail = async (
   } catch (error) {
     console.error(`Failed to send email to ${to}:`, error);
     throw error;
+  }
+};
+
+export const sendWelcomeEmail = async (to: string): Promise<void> => {
+  const html = generateWelcomeEmail();
+  const subject = 'Welcome to MTG Artist Connection!';
+
+  try {
+    await sendEmail(to, subject, html);
+    console.log(`Welcome email sent to ${to}`);
+  } catch (error) {
+    console.error(`Failed to send welcome email to ${to}:`, error);
+    // Don't throw - we don't want signup to fail if welcome email fails
   }
 };

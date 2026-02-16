@@ -86,12 +86,6 @@ export const runDailyEventDigest = async (): Promise<void> => {
       'emailPreferences.localSigningEvents': true
     };
 
-    // TESTING MODE: Only send to admins in production
-    if (process.env.NODE_ENV === 'production') {
-      query.role = 'admin';
-      console.log('Running in PRODUCTION mode - only sending to admins');
-    }
-
     const allMonitoringUsers = await User.find(query);
     console.log(`Found ${allMonitoringUsers.length} user(s) monitoring these states`);
 

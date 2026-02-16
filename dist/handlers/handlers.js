@@ -16,6 +16,7 @@ const CardKingdomPrice_1 = __importDefault(require("../models/CardKingdomPrice")
 const ArtistChange_1 = __importDefault(require("../models/ArtistChange"));
 const EventChange_1 = __importDefault(require("../models/EventChange"));
 const auth_1 = require("../middleware/auth");
+const emailService_1 = require("../services/emailService");
 const CardLookupInput = new graphql_1.GraphQLInputObjectType({
     name: "CardLookupInput",
     fields: {
@@ -163,6 +164,10 @@ const mutations = new graphql_1.GraphQLObjectType({
                     // Generate JWT token with user role
                     // @ts-ignore
                     const token = (0, auth_1.generateToken)(savedUser._id.toString(), savedUser.role);
+                    // Send welcome email (async, don't wait for it)
+                    (0, emailService_1.sendWelcomeEmail)(email).catch(err => {
+                        console.error('Failed to send welcome email:', err);
+                    });
                     return {
                         token,
                         user: savedUser
