@@ -1,8 +1,9 @@
 import nodemailer from "nodemailer";
-import { SESClient, SendRawEmailCommand } from "@aws-sdk/client-ses";
+import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 import { generateWelcomeEmail } from "../templates/welcomeEmail";
 
-const ses = new SESClient({
+// Create SESv2 client
+const sesClient = new SESv2Client({
   region: process.env.AWS_REGION,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
@@ -10,36 +11,23 @@ const ses = new SESClient({
   },
 });
 
+// Nodemailer transporter configured for SESv2
 const transporter = nodemailer.createTransport({
-  SES: {
-    ses,
-    aws: { SendRawEmailCommand },
-  },
+  SES: { sesClient, SendEmailCommand },
 });
 
-export const sendEmail = async (
-  to: string,
-  subject: string,
-  html: string
-): Promise<void> => {
-  try {
-    await transporter.sendMail({
-      from:
-        process.env.EMAIL_FROM ??
-        "MTG Artist Connection <noreply@mtgartistconnection.com>",
-      to,
-      subject,
-      html,
-    });
-
-    console.log(`Email sent to ${to}`);
-  } catch (error) {
-    console.error(`Failed to send email to ${to}:`, error);
-    throw error;
-  }
+// Generic send email function
+export const sendEmail = async (to: string, subject: string, html: string) => {
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM || "MTG Artist Connection <noreply@mtgartistconnection.com>",
+    to,
+    subject,
+    html,
+  });
 };
 
-export const sendWelcomeEmail = async (to: string): Promise<void> => {
+// Welcome email with retry
+export const sendWelcomeEmail = async (to: string) => {
   const html = generateWelcomeEmail();
   const subject = "Welcome to MTG Artist Connection!";
 
@@ -53,11 +41,7 @@ export const sendWelcomeEmail = async (to: string): Promise<void> => {
       return;
     } catch (error) {
       lastError = error;
-
-      console.error(
-        `Failed to send welcome email to ${to} (attempt ${attempt}/${maxRetries}):`,
-        error
-      );
+      console.error(`Failed to send welcome email to ${to} (attempt ${attempt}/${maxRetries}):`, error);
 
       if (attempt < maxRetries) {
         const waitTime = Math.pow(2, attempt) * 1000;
@@ -67,8 +51,5 @@ export const sendWelcomeEmail = async (to: string): Promise<void> => {
     }
   }
 
-  console.error(
-    `Failed to send welcome email to ${to} after ${maxRetries} attempts`,
-    lastError
-  );
+  console.error(`Failed to send welcome email to ${to} after ${maxRetries} attempts`, lastError);
 };
