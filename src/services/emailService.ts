@@ -1,23 +1,26 @@
 import nodemailer from "nodemailer";
 import dns from "dns";
 import { generateWelcomeEmail } from "../templates/welcomeEmail";
+import SMTPTransport from "nodemailer/lib/smtp-transport";
 
 // Force Node to prefer IPv4 everywhere (important on AWS / Amplify)
 dns.setDefaultResultOrder("ipv4first");
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // STARTTLS
-  family: 4, // force IPv4
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
-  },
-  connectionTimeout: 10_000,
-  greetingTimeout: 10_000,
-  socketTimeout: 10_000,
-});
+const transporter = nodemailer.createTransport(
+  {
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false, // STARTTLS
+    family: 4,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 10_000,
+  } as SMTPTransport.Options
+);
 
 export const sendEmail = async (
   to: string,
