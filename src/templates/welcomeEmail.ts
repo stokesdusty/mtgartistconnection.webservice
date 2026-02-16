@@ -39,7 +39,7 @@ export const generateWelcomeEmail = (): string => {
         </div>
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${frontendUrl}/artists"
+          <a href="${frontendUrl}/"
              style="display: inline-block; background-color: #507A60; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 16px;">
             Browse Artists
           </a>

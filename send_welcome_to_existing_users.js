@@ -40,9 +40,10 @@ async function sendWelcomeToAllUsers() {
   const User = getUserModel();
 
   try {
-    // Get all users
-    const users = await User.find({}).select('email name');
-    console.log(`Found ${users.length} total users\n`);
+    // ONLY SEND TO TEST EMAIL
+    const testEmail = 'mtgartistconnection@gmail.com';
+    const users = await User.find({ email: testEmail }).select('email name');
+    console.log(`Found ${users.length} user(s) matching test email: ${testEmail}\n`);
 
     if (users.length === 0) {
       console.log('No users found. Exiting.');
