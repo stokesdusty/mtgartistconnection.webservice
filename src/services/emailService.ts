@@ -1,26 +1,21 @@
 import nodemailer from "nodemailer";
-import dns from "dns";
+import { SESClient, SendRawEmailCommand } from "@aws-sdk/client-ses";
 import { generateWelcomeEmail } from "../templates/welcomeEmail";
-import SMTPTransport from "nodemailer/lib/smtp-transport";
 
-// Force Node to prefer IPv4 everywhere (important on AWS / Amplify)
-dns.setDefaultResultOrder("ipv4first");
+const ses = new SESClient({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
 
-const transporter = nodemailer.createTransport(
-  {
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false, // STARTTLS
-    family: 4,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 10_000,
-  } as SMTPTransport.Options
-);
+const transporter = nodemailer.createTransport({
+  SES: {
+    ses,
+    aws: { SendRawEmailCommand },
+  },
+});
 
 export const sendEmail = async (
   to: string,
@@ -76,6 +71,4 @@ export const sendWelcomeEmail = async (to: string): Promise<void> => {
     `Failed to send welcome email to ${to} after ${maxRetries} attempts`,
     lastError
   );
-
-  // Intentionally do not throw
 };
