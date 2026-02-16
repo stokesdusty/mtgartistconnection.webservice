@@ -46,16 +46,6 @@ export const generateWelcomeEmail = (): string => {
         </div>
 
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 14px; color: #666;">
-          <p>
-            <a href="${frontendUrl}/settings"
-               style="color: #507A60; text-decoration: none; font-weight: 600;">
-              Account Settings
-            </a> |
-            <a href="${frontendUrl}/calendar"
-               style="color: #507A60; text-decoration: none; font-weight: 600;">
-              View Events
-            </a>
-          </p>
           <p style="margin-top: 15px; font-size: 12px; color: #999;">
             We will only use your email to contact you for updates on artists that you follow or if events are created or updated in a state that you are following.
           </p>
