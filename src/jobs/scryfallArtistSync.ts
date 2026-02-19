@@ -6,6 +6,15 @@ import { generateScryfallSyncEmail } from '../templates/missingArtistsEmail';
 
 const SCRYFALL_ARTISTS_URL = 'https://api.scryfall.com/catalog/artist-names';
 
+// Scryfall names to ignore (artists we've confirmed don't need to be added)
+const IGNORED_SCRYFALL_NAMES = new Set([
+  'john franklin howe',
+  'levinky',
+  'j. schirmer',
+  'Poison Project (USE ANDITYA DITA INSTEAD)',
+  'ray'
+]);
+
 interface ScryfallCatalogResponse {
   object: string;
   uri: string;
@@ -43,7 +52,8 @@ export const runScryfallArtistSync = async (): Promise<void> => {
     // 4. Find Scryfall artists not in our DB (by scryfall_name)
     const missingFromDb: string[] = [];
     for (const scryfallName of scryfallArtists) {
-      if (!dbScryfallNamesLower.has(scryfallName.toLowerCase())) {
+      const lowerName = scryfallName.toLowerCase();
+      if (!dbScryfallNamesLower.has(lowerName) && !IGNORED_SCRYFALL_NAMES.has(lowerName)) {
         missingFromDb.push(scryfallName);
       }
     }
