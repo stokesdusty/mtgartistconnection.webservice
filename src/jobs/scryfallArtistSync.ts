@@ -12,6 +12,7 @@ const IGNORED_SCRYFALL_NAMES = new Set([
   'levinky',
   'j. schirmer',
   'Poison Project (USE ANDITYA DITA INSTEAD)',
+  'Poison Project',
   'ray'
 ]);
 
