@@ -7,12 +7,13 @@ import { generateScryfallSyncEmail } from '../templates/missingArtistsEmail';
 const SCRYFALL_ARTISTS_URL = 'https://api.scryfall.com/catalog/artist-names';
 
 // Scryfall names to ignore (artists we've confirmed don't need to be added)
+// NOTE: All entries must be lowercase for case-insensitive matching
 const IGNORED_SCRYFALL_NAMES = new Set([
   'john franklin howe',
   'levinky',
   'j. schirmer',
-  'Poison Project (USE ANDITYA DITA INSTEAD)',
-  'Poison Project',
+  'poison project (use anditya dita instead)',
+  'poison project',
   'ray'
 ]);
 
