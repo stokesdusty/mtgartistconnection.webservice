@@ -9,12 +9,22 @@ const SCRYFALL_ARTISTS_URL = 'https://api.scryfall.com/catalog/artist-names';
 // Scryfall names to ignore (artists we've confirmed don't need to be added)
 // NOTE: All entries must be lowercase for case-insensitive matching
 const IGNORED_SCRYFALL_NAMES = new Set([
-  'john franklin howe',
-  'levinky',
+  'dave hunt',
+  'frank martin',
   'j. schirmer',
-  'poison project (use anditya dita instead)',
+  'jason keith',
+  'jeromy cox',
+  'joe rubenstein',
+  'john franklin howe',
+  'larry mahlstedt',
+  'levinky',
+  'linda lessman',
+  'locodrilo',
+  'peter steigerwald',
   'poison project',
-  'ray'
+  'poison project (use anditya dita instead)',
+  'ray',
+  'steve lavigne'
 ]);
 
 interface ScryfallCatalogResponse {
