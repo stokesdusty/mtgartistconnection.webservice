@@ -18,7 +18,7 @@ const IGNORED_SCRYFALL_NAMES = new Set([
   'john franklin howe',
   'larry mahlstedt',
   'levinky',
-  'linda lessman',
+  'linda lessmann',
   'locodrilo',
   'peter steigerwald',
   'poison project',
