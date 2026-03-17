@@ -299,7 +299,17 @@ const mutations = new GraphQLObjectType({
                             inprnt,
                             alternate_names
                         });
-                    return await artist.save();
+                    const savedArtist = await artist.save();
+
+                    // Create ArtistChange record for new artist notification
+                    await ArtistChange.create({
+                        artistName: name,
+                        changeType: 'new_artist',
+                        timestamp: new Date(),
+                        processed: false
+                    });
+
+                    return savedArtist;
                 } catch (err) {
                     throw new Error("Artist Signup Failed. Try again.");
                 }

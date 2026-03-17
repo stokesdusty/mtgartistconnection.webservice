@@ -11,6 +11,7 @@ import { authMiddleware } from './middleware/auth';
 import { runDailyDigest } from './jobs/dailyDigest';
 import { runDailyEventDigest } from './jobs/dailyEventDigest';
 import { runScryfallArtistSync } from './jobs/scryfallArtistSync';
+import { runDailyNewArtistDigest } from './jobs/dailyNewArtistDigest';
 
 // Dotenv config
 config();
@@ -86,6 +87,17 @@ connectToDatabase()
             }
         });
         console.log('Scryfall artist sync cron job scheduled for 4 PM PST daily');
+
+        // Run new artist digest daily at 8 PM (20:00) in server timezone
+        cron.schedule('0 20 * * *', async () => {
+            console.log('Triggering daily new artist digest job...');
+            try {
+                await runDailyNewArtistDigest();
+            } catch (error) {
+                console.error('Daily new artist digest job failed:', error);
+            }
+        });
+        console.log('Daily new artist digest cron job scheduled for 8 PM daily');
 
         return app.listen(process.env.PORT,
         () => console.log(`Server Open on Port ${process.env.PORT}`)
