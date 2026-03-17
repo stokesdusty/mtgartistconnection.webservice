@@ -610,8 +610,9 @@ const mutations = new GraphQLObjectType({
                 siteUpdates: { type: GraphQLNonNull(GraphQLBoolean) },
                 artistUpdates: { type: GraphQLNonNull(GraphQLBoolean) },
                 localSigningEvents: { type: GraphQLNonNull(GraphQLBoolean) },
+                newArtistNotifications: { type: GraphQLNonNull(GraphQLBoolean) },
             },
-            async resolve(parent, {siteUpdates, artistUpdates, localSigningEvents}, context) {
+            async resolve(parent, {siteUpdates, artistUpdates, localSigningEvents, newArtistNotifications}, context) {
                 // Require authentication
                 requireAuth(context.isAuthenticated);
 
@@ -631,6 +632,8 @@ const mutations = new GraphQLObjectType({
                     user.set('emailPreferences.artistUpdates', artistUpdates);
                     // @ts-ignore
                     user.set('emailPreferences.localSigningEvents', localSigningEvents);
+                    // @ts-ignore
+                    user.set('emailPreferences.newArtistNotifications', newArtistNotifications);
 
                     // Mark the nested field as modified
                     // @ts-ignore

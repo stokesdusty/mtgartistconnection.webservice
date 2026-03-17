@@ -34,6 +34,7 @@ export const EmailPreferencesType = new GraphQLObjectType({
         siteUpdates: { type: GraphQLBoolean },
         artistUpdates: { type: GraphQLBoolean },
         localSigningEvents: { type: GraphQLBoolean },
+        newArtistNotifications: { type: GraphQLBoolean },
     }),
 });
 
