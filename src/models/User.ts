@@ -33,6 +33,10 @@ const userSchema:Schema = new Schema({
         localSigningEvents: {
             type: Boolean,
             default: false,
+        },
+        newArtistNotifications: {
+            type: Boolean,
+            default: false,
         }
     },
     followedArtists: {
