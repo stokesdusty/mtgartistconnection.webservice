@@ -28,7 +28,6 @@ export const runSocialMediaSync = async (): Promise<void> => {
 
       // Check Bluesky
       if (artist.bluesky) {
-        console.log(`[${artist.name}] Syncing Bluesky: ${artist.bluesky}`);
         syncPromises.push(syncBluesky(artist));
       }
 
@@ -56,11 +55,9 @@ async function syncBluesky(artist: any) {
 
     // Bluesky has public endpoints that don't always require auth for basic feeds
     const apiUrl = `https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=${handle}&limit=5`;
-    console.log(`[${artist.name}] Fetching Bluesky feed from: ${apiUrl}`);
     const response = await axios.get(apiUrl);
     
     const feeds = response.data.feed || [];
-    console.log(`[${artist.name}] Received ${feeds.length} items from Bluesky feed.`);
     
     let postsSaved = 0;
     for (const item of feeds) {
@@ -70,7 +67,6 @@ async function syncBluesky(artist: any) {
       // Only save if it's a recent post (e.g., last 48 hours)
       const twoDaysAgo = new Date();
       twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-      console.log(`[${artist.name}] Considering post (ID: ${post.cid}, Date: ${createdAt.toISOString()}).`);
 
       if (createdAt > twoDaysAgo) {
         const result = await ArtistPost.findOneAndUpdate(
