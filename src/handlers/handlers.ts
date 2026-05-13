@@ -1035,6 +1035,12 @@ const mutations = new GraphQLObjectType({
                 requireAdmin(context.isAuthenticated, context.userRole);
 
                 try {
+                    // Get the existing news review to check if it's being published for the first time
+                    const existingNewsReview = await NewsReview.findById(id);
+                    if (!existingNewsReview) {
+                        return { success: false, message: "News review not found" };
+                    }
+
                     const updateData: any = {};
                     if (title !== undefined) updateData.title = title;
                     if (content !== undefined) updateData.content = content;
@@ -1050,6 +1056,20 @@ const mutations = new GraphQLObjectType({
                     const newsReview = await NewsReview.findByIdAndUpdate(id, updateData, { new: true });
                     if (!newsReview) {
                         return { success: false, message: "News review not found" };
+                    }
+
+                    // If the article is being published for the first time, create an ArtistChange entry
+                    if (isPublished && !existingNewsReview.isPublished) {
+                        await ArtistChange.create({
+                            artistName: newsReview.artistName,
+                            changeType: 'news_article',
+                            newsArticleId: newsReview._id.toString(),
+                            newsArticleTitle: newsReview.title,
+                            newsArticleSummary: newsReview.summary,
+                            timestamp: new Date(),
+                            processed: false,
+                        });
+                        console.log(`Created ArtistChange entry for published article: ${newsReview.title}`);
                     }
 
                     return { success: true, message: "News review updated successfully" };
