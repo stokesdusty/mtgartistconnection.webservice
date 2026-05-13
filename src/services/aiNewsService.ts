@@ -52,7 +52,7 @@ Return ONLY the JSON, no other text.`;
     console.log('Generating article for artist:', artistName, 'platform:', platform);
 
     // Use gemini-2.0-flash which is free and fast
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
