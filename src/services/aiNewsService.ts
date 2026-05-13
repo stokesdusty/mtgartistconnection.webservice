@@ -1,8 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export interface NewsArticle {
   title: string;
@@ -40,24 +38,20 @@ Format your response as JSON with the following structure:
   "title": "Article title here",
   "summary": "Brief summary here",
   "content": "Full article content here"
-}`;
+}
+
+Return ONLY the JSON, no other text.`;
 
   try {
-    const message = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 2000,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    });
+    // Use Gemini 1.5 Flash (free tier model)
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
     // Extract JSON from the response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('Failed to parse AI response');
     }
