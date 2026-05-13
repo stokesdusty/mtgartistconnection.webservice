@@ -26,10 +26,10 @@ Original post URL: ${postUrl}
 Please generate:
 1. A compelling news title (50-80 characters)
 2. A brief summary (1-2 sentences, ~150 characters)
-3. A full article (100-200 words) that:
+3. A full article (75-200 words) that:
    - Provides context about the artist and their work in the MTG community
    - Discusses what was shared in the post
-   - Maintains a professional, informative tone
+   - Maintains an informative, but friendly, conversational tone
    - Includes a link to the original post for readers to view
    - Avoids speculation or unverified claims
 
