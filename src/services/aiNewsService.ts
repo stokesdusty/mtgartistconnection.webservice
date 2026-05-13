@@ -51,8 +51,8 @@ Return ONLY the JSON, no other text.`;
 
     console.log('Generating article for artist:', artistName, 'platform:', platform);
 
-    // Use Gemini Pro (free tier model)
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    // Use Gemini 1.5 Pro (free tier model - latest available)
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
