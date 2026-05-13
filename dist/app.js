@@ -16,6 +16,8 @@ const auth_1 = require("./middleware/auth");
 const dailyDigest_1 = require("./jobs/dailyDigest");
 const dailyEventDigest_1 = require("./jobs/dailyEventDigest");
 const scryfallArtistSync_1 = require("./jobs/scryfallArtistSync");
+const dailyNewArtistDigest_1 = require("./jobs/dailyNewArtistDigest");
+const socialMediaSync_1 = require("./jobs/socialMediaSync");
 // Dotenv config
 (0, dotenv_1.config)();
 const app = (0, express_1.default)();
@@ -88,6 +90,33 @@ app.use("/graphql", (0, express_graphql_1.graphqlHTTP)((req) => ({
         }
     });
     console.log('Scryfall artist sync cron job scheduled for 4 PM PST daily');
+    // Run new artist digest daily at 8 PM (20:00) in server timezone
+    node_cron_1.default.schedule('0 20 * * *', async () => {
+        console.log('Triggering daily new artist digest job...');
+        try {
+            await (0, dailyNewArtistDigest_1.runDailyNewArtistDigest)();
+        }
+        catch (error) {
+            console.error('Daily new artist digest job failed:', error);
+        }
+    });
+    console.log('Daily new artist digest cron job scheduled for 8 PM daily');
+    // For local testing: Trigger one sync batch immediately on startup
+    if (process.env.NODE_ENV !== 'production') {
+        console.log('Local environment detected: Triggering initial social media sync...');
+        (0, socialMediaSync_1.runSocialMediaSync)().catch(err => console.error('Initial sync failed:', err));
+    }
+    // Run Social Media sync every 5 minutes
+    node_cron_1.default.schedule('*/5 * * * *', async () => {
+        console.log('Triggering social media sync batch...');
+        try {
+            await (0, socialMediaSync_1.runSocialMediaSync)();
+        }
+        catch (error) {
+            console.error('Social media sync job failed:', error);
+        }
+    });
+    console.log('Social media sync cron job scheduled for every 5 minutes');
     return app.listen(process.env.PORT, () => console.log(`Server Open on Port ${process.env.PORT}`));
 })
     .catch(err => console.log(err));

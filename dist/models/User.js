@@ -34,6 +34,10 @@ const userSchema = new mongoose_1.Schema({
         localSigningEvents: {
             type: Boolean,
             default: false,
+        },
+        newArtistNotifications: {
+            type: Boolean,
+            default: false,
         }
     },
     followedArtists: {

@@ -1,5 +1,5 @@
-import { GraphQLBoolean, GraphQLID, GraphQLInputObjectType, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, SigningEventType, UserType } from "../schema/schema";
+import { GraphQLBoolean, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
+import { ArtistType, ArtistPostType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, SigningEventType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
@@ -10,6 +10,7 @@ import CardPrice from "../models/CardPrice";
 import CardKingdomPrice from "../models/CardKingdomPrice";
 import ArtistChange from "../models/ArtistChange";
 import EventChange from "../models/EventChange";
+import ArtistPost from "../models/ArtistPost";
 import { generateToken, requireAuth, requireAdmin } from "../middleware/auth";
 import { sendWelcomeEmail } from "../services/emailService";
 
@@ -143,6 +144,19 @@ const RootQuery = new GraphQLObjectType({
                     throw new Error("Failed to fetch user data");
                 }
             },
+        },
+        artistPosts: {
+            type: GraphQLList(ArtistPostType),
+            args: {
+                isReviewed: { type: GraphQLBoolean },
+                limit: { type: GraphQLInt, defaultValue: 50 }
+            },
+            async resolve(parent, { isReviewed, limit }, context) {
+                requireAdmin(context.isAuthenticated, context.userRole);
+                const query: any = {};
+                if (isReviewed !== undefined) query.isReviewed = isReviewed;
+                return await ArtistPost.find(query).sort({ postDate: -1 }).limit(limit);
+            }
         },
     },
 });
@@ -867,6 +881,78 @@ const mutations = new GraphQLObjectType({
                     };
                 }
             },
+        },
+        // Update an artist post (e.g., mark as reviewed)
+        updateArtistPost: {
+            type: MutationResponseType,
+            args: {
+                id: { type: GraphQLNonNull(GraphQLID) },
+                isReviewed: { type: GraphQLNonNull(GraphQLBoolean) },
+            },
+            async resolve(parent, { id, isReviewed }, context) {
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
+
+                try {
+                    const post = await ArtistPost.findByIdAndUpdate(
+                        id,
+                        { $set: { isReviewed } },
+                        { new: true }
+                    );
+                    if (!post) throw new Error("Post not found");
+
+                    return {
+                        success: true,
+                        message: "Post updated successfully"
+                    };
+                } catch (err) {
+                    return {
+                        success: false,
+                        message: err.message || "Update post failed"
+                    };
+                }
+            },
+        },
+        // Delete a specific social media post
+        deleteArtistPost: {
+            type: MutationResponseType,
+            args: {
+                id: { type: GraphQLNonNull(GraphQLID) },
+            },
+            async resolve(parent, { id }, context) {
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
+
+                try {
+                    const result = await ArtistPost.findByIdAndDelete(id);
+                    if (!result) throw new Error("Post not found");
+                    
+                    return { success: true, message: "Post deleted successfully" };
+                } catch (err) {
+                    return { success: false, message: err.message || "Failed to delete post" };
+                }
+            }
+        },
+        // Delete all posts that have been marked as reviewed
+        deleteReviewedArtistPosts: {
+            type: MutationResponseType,
+            async resolve(parent, args, context) {
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
+
+                try {
+                    const result = await ArtistPost.deleteMany({ isReviewed: true });
+                    return { 
+                        success: true, 
+                        message: `Successfully deleted ${result.deletedCount} reviewed posts` 
+                    };
+                } catch (err) {
+                    return { 
+                        success: false, 
+                        message: err.message || "Failed to delete reviewed posts" 
+                    };
+                }
+            }
         },
     },
 });

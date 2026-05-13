@@ -144,3 +144,19 @@ export const ArtistChangeType = new GraphQLObjectType({
         processedAt: { type: GraphQLString },
     }),
 });
+
+export const ArtistPostType = new GraphQLObjectType({
+    name: "ArtistPostType",
+    fields: () => ({
+        id: { type: GraphQLNonNull(GraphQLID) },
+        artistId: { type: GraphQLNonNull(GraphQLID) },
+        artistName: { type: GraphQLNonNull(GraphQLString) },
+        platform: { type: GraphQLNonNull(GraphQLString) },
+        externalPostId: { type: GraphQLNonNull(GraphQLString) },
+        content: { type: GraphQLString },
+        postUrl: { type: GraphQLNonNull(GraphQLString) },
+        postDate: { type: GraphQLString },
+        fetchedAt: { type: GraphQLString },
+        isReviewed: { type: GraphQLBoolean },
+    }),
+});

@@ -12,6 +12,7 @@ import { runDailyDigest } from './jobs/dailyDigest';
 import { runDailyEventDigest } from './jobs/dailyEventDigest';
 import { runScryfallArtistSync } from './jobs/scryfallArtistSync';
 import { runDailyNewArtistDigest } from './jobs/dailyNewArtistDigest';
+import { runSocialMediaSync } from './jobs/socialMediaSync';
 
 // Dotenv config
 config();
@@ -98,6 +99,23 @@ connectToDatabase()
             }
         });
         console.log('Daily new artist digest cron job scheduled for 8 PM daily');
+
+        // For local testing: Trigger one sync batch immediately on startup
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('Local environment detected: Triggering initial social media sync...');
+            runSocialMediaSync().catch(err => console.error('Initial sync failed:', err));
+        }
+
+        // Run Social Media sync every 5 minutes
+        cron.schedule('*/5 * * * *', async () => {
+            console.log('Triggering social media sync batch...');
+            try {
+                await runSocialMediaSync();
+            } catch (error) {
+                console.error('Social media sync job failed:', error);
+            }
+        });
+        console.log('Social media sync cron job scheduled for every 5 minutes');
 
         return app.listen(process.env.PORT,
         () => console.log(`Server Open on Port ${process.env.PORT}`)

@@ -69,6 +69,9 @@ const artistSchema = new mongoose_1.Schema({
     },
     alternate_names: {
         type: String
+    },
+    lastSocialSync: {
+        type: Date
     }
 });
 exports.default = (0, mongoose_1.model)("Artist", artistSchema);

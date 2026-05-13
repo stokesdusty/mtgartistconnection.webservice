@@ -68,6 +68,9 @@ const artistSchema:Schema = new Schema({
     },
     alternate_names: {
         type: String
+    },
+    lastSocialSync: {
+        type: Date
     }
 });
 

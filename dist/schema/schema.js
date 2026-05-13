@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ArtistChangeType = exports.MutationResponseType = exports.CardKingdomPriceType = exports.CardPriceType = exports.MapArtistToEventType = exports.SigningEventType = exports.AuthResponseType = exports.UserType = exports.EmailPreferencesType = exports.ArtistType = void 0;
+exports.ArtistPostType = exports.ArtistChangeType = exports.MutationResponseType = exports.CardKingdomPriceType = exports.CardPriceType = exports.MapArtistToEventType = exports.SigningEventType = exports.AuthResponseType = exports.UserType = exports.EmailPreferencesType = exports.ArtistType = void 0;
 const graphql_1 = require("graphql");
 exports.ArtistType = new graphql_1.GraphQLObjectType({
     name: "ArtistType",
@@ -35,6 +35,7 @@ exports.EmailPreferencesType = new graphql_1.GraphQLObjectType({
         siteUpdates: { type: graphql_1.GraphQLBoolean },
         artistUpdates: { type: graphql_1.GraphQLBoolean },
         localSigningEvents: { type: graphql_1.GraphQLBoolean },
+        newArtistNotifications: { type: graphql_1.GraphQLBoolean },
     }),
 });
 exports.UserType = new graphql_1.GraphQLObjectType({
@@ -134,6 +135,21 @@ exports.ArtistChangeType = new graphql_1.GraphQLObjectType({
         eventLocation: { type: graphql_1.GraphQLString },
         processed: { type: graphql_1.GraphQLBoolean },
         processedAt: { type: graphql_1.GraphQLString },
+    }),
+});
+exports.ArtistPostType = new graphql_1.GraphQLObjectType({
+    name: "ArtistPostType",
+    fields: () => ({
+        id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+        artistId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+        artistName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        platform: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        externalPostId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        content: { type: graphql_1.GraphQLString },
+        postUrl: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        postDate: { type: graphql_1.GraphQLString },
+        fetchedAt: { type: graphql_1.GraphQLString },
+        isReviewed: { type: graphql_1.GraphQLBoolean },
     }),
 });
 //# sourceMappingURL=schema.js.map

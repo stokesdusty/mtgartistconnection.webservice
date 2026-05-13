@@ -15,6 +15,7 @@ const CardPrice_1 = __importDefault(require("../models/CardPrice"));
 const CardKingdomPrice_1 = __importDefault(require("../models/CardKingdomPrice"));
 const ArtistChange_1 = __importDefault(require("../models/ArtistChange"));
 const EventChange_1 = __importDefault(require("../models/EventChange"));
+const ArtistPost_1 = __importDefault(require("../models/ArtistPost"));
 const auth_1 = require("../middleware/auth");
 const emailService_1 = require("../services/emailService");
 const CardLookupInput = new graphql_1.GraphQLInputObjectType({
@@ -137,6 +138,20 @@ const RootQuery = new graphql_1.GraphQLObjectType({
                     throw new Error("Failed to fetch user data");
                 }
             },
+        },
+        artistPosts: {
+            type: (0, graphql_1.GraphQLList)(schema_1.ArtistPostType),
+            args: {
+                isReviewed: { type: graphql_1.GraphQLBoolean },
+                limit: { type: graphql_1.GraphQLInt, defaultValue: 50 }
+            },
+            async resolve(parent, { isReviewed, limit }, context) {
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
+                const query = {};
+                if (isReviewed !== undefined)
+                    query.isReviewed = isReviewed;
+                return await ArtistPost_1.default.find(query).sort({ postDate: -1 }).limit(limit);
+            }
         },
     },
 });
@@ -265,7 +280,15 @@ const mutations = new graphql_1.GraphQLObjectType({
                         inprnt,
                         alternate_names
                     });
-                    return await artist.save();
+                    const savedArtist = await artist.save();
+                    // Create ArtistChange record for new artist notification
+                    await ArtistChange_1.default.create({
+                        artistName: name,
+                        changeType: 'new_artist',
+                        timestamp: new Date(),
+                        processed: false
+                    });
+                    return savedArtist;
                 }
                 catch (err) {
                     throw new Error("Artist Signup Failed. Try again.");
@@ -552,8 +575,9 @@ const mutations = new graphql_1.GraphQLObjectType({
                 siteUpdates: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLBoolean) },
                 artistUpdates: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLBoolean) },
                 localSigningEvents: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLBoolean) },
+                newArtistNotifications: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLBoolean) },
             },
-            async resolve(parent, { siteUpdates, artistUpdates, localSigningEvents }, context) {
+            async resolve(parent, { siteUpdates, artistUpdates, localSigningEvents, newArtistNotifications }, context) {
                 // Require authentication
                 (0, auth_1.requireAuth)(context.isAuthenticated);
                 try {
@@ -571,6 +595,8 @@ const mutations = new graphql_1.GraphQLObjectType({
                     user.set('emailPreferences.artistUpdates', artistUpdates);
                     // @ts-ignore
                     user.set('emailPreferences.localSigningEvents', localSigningEvents);
+                    // @ts-ignore
+                    user.set('emailPreferences.newArtistNotifications', newArtistNotifications);
                     // Mark the nested field as modified
                     // @ts-ignore
                     user.markModified('emailPreferences');
@@ -781,6 +807,74 @@ const mutations = new graphql_1.GraphQLObjectType({
                     };
                 }
             },
+        },
+        // Update an artist post (e.g., mark as reviewed)
+        updateArtistPost: {
+            type: schema_1.MutationResponseType,
+            args: {
+                id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+                isReviewed: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLBoolean) },
+            },
+            async resolve(parent, { id, isReviewed }, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
+                try {
+                    const post = await ArtistPost_1.default.findByIdAndUpdate(id, { $set: { isReviewed } }, { new: true });
+                    if (!post)
+                        throw new Error("Post not found");
+                    return {
+                        success: true,
+                        message: "Post updated successfully"
+                    };
+                }
+                catch (err) {
+                    return {
+                        success: false,
+                        message: err.message || "Update post failed"
+                    };
+                }
+            },
+        },
+        // Delete a specific social media post
+        deleteArtistPost: {
+            type: schema_1.MutationResponseType,
+            args: {
+                id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+            },
+            async resolve(parent, { id }, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
+                try {
+                    const result = await ArtistPost_1.default.findByIdAndDelete(id);
+                    if (!result)
+                        throw new Error("Post not found");
+                    return { success: true, message: "Post deleted successfully" };
+                }
+                catch (err) {
+                    return { success: false, message: err.message || "Failed to delete post" };
+                }
+            }
+        },
+        // Delete all posts that have been marked as reviewed
+        deleteReviewedArtistPosts: {
+            type: schema_1.MutationResponseType,
+            async resolve(parent, args, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
+                try {
+                    const result = await ArtistPost_1.default.deleteMany({ isReviewed: true });
+                    return {
+                        success: true,
+                        message: `Successfully deleted ${result.deletedCount} reviewed posts`
+                    };
+                }
+                catch (err) {
+                    return {
+                        success: false,
+                        message: err.message || "Failed to delete reviewed posts"
+                    };
+                }
+            }
         },
     },
 });
