@@ -24,6 +24,7 @@
     "typescript": "^5.1.6"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.96.0",
     "@aws-sdk/client-sesv2": "^3.990.0",
     "axios": "^1.13.4",
     "bcrypt-nodejs": "^0.0.3",

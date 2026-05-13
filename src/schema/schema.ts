@@ -160,3 +160,21 @@ export const ArtistPostType = new GraphQLObjectType({
         isReviewed: { type: GraphQLBoolean },
     }),
 });
+
+export const NewsReviewType = new GraphQLObjectType({
+    name: "NewsReviewType",
+    fields: () => ({
+        id: { type: GraphQLNonNull(GraphQLID) },
+        artistPostId: { type: GraphQLNonNull(GraphQLID) },
+        artistId: { type: GraphQLNonNull(GraphQLID) },
+        artistName: { type: GraphQLNonNull(GraphQLString) },
+        title: { type: GraphQLNonNull(GraphQLString) },
+        content: { type: GraphQLNonNull(GraphQLString) },
+        summary: { type: GraphQLNonNull(GraphQLString) },
+        sourcePostUrl: { type: GraphQLNonNull(GraphQLString) },
+        generatedAt: { type: GraphQLString },
+        isReviewed: { type: GraphQLBoolean },
+        isPublished: { type: GraphQLBoolean },
+        publishedAt: { type: GraphQLString },
+    }),
+});

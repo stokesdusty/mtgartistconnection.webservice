@@ -1,5 +1,5 @@
 import { GraphQLBoolean, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, ArtistPostType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, SigningEventType, UserType } from "../schema/schema";
+import { ArtistType, ArtistPostType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, SigningEventType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
@@ -11,8 +11,10 @@ import CardKingdomPrice from "../models/CardKingdomPrice";
 import ArtistChange from "../models/ArtistChange";
 import EventChange from "../models/EventChange";
 import ArtistPost from "../models/ArtistPost";
+import NewsReview from "../models/NewsReview";
 import { generateToken, requireAuth, requireAdmin } from "../middleware/auth";
 import { sendWelcomeEmail } from "../services/emailService";
+import { generateNewsArticle } from "../services/aiNewsService";
 
 type DocumentType = Document<any, any, any>;
 
@@ -156,6 +158,21 @@ const RootQuery = new GraphQLObjectType({
                 const query: any = {};
                 if (isReviewed !== undefined) query.isReviewed = isReviewed;
                 return await ArtistPost.find(query).sort({ postDate: -1 }).limit(limit);
+            }
+        },
+        newsReviews: {
+            type: GraphQLList(NewsReviewType),
+            args: {
+                isReviewed: { type: GraphQLBoolean },
+                isPublished: { type: GraphQLBoolean },
+                limit: { type: GraphQLInt, defaultValue: 50 }
+            },
+            async resolve(parent, { isReviewed, isPublished, limit }, context) {
+                requireAdmin(context.isAuthenticated, context.userRole);
+                const query: any = {};
+                if (isReviewed !== undefined) query.isReviewed = isReviewed;
+                if (isPublished !== undefined) query.isPublished = isPublished;
+                return await NewsReview.find(query).sort({ generatedAt: -1 }).limit(limit);
             }
         },
     },
@@ -942,14 +959,128 @@ const mutations = new GraphQLObjectType({
 
                 try {
                     const result = await ArtistPost.deleteMany({ isReviewed: true });
-                    return { 
-                        success: true, 
-                        message: `Successfully deleted ${result.deletedCount} reviewed posts` 
+                    return {
+                        success: true,
+                        message: `Successfully deleted ${result.deletedCount} reviewed posts`
                     };
                 } catch (err) {
-                    return { 
-                        success: false, 
-                        message: err.message || "Failed to delete reviewed posts" 
+                    return {
+                        success: false,
+                        message: err.message || "Failed to delete reviewed posts"
+                    };
+                }
+            }
+        },
+        generateNewsArticle: {
+            type: NewsReviewType,
+            args: {
+                artistPostId: { type: GraphQLNonNull(GraphQLID) }
+            },
+            async resolve(parent, { artistPostId }, context) {
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
+
+                try {
+                    // Find the artist post
+                    const artistPost = await ArtistPost.findById(artistPostId);
+                    if (!artistPost) {
+                        throw new Error("Artist post not found");
+                    }
+
+                    // Check if news article already exists for this post
+                    const existingArticle = await NewsReview.findOne({ artistPostId });
+                    if (existingArticle) {
+                        throw new Error("News article already exists for this post");
+                    }
+
+                    // Generate the news article using AI
+                    const article = await generateNewsArticle(
+                        artistPost.artistName,
+                        artistPost.content,
+                        artistPost.postUrl,
+                        artistPost.platform
+                    );
+
+                    // Create the news review entry
+                    const newsReview = new NewsReview({
+                        artistPostId: artistPost._id,
+                        artistId: artistPost.artistId,
+                        artistName: artistPost.artistName,
+                        title: article.title,
+                        content: article.content,
+                        summary: article.summary,
+                        sourcePostUrl: artistPost.postUrl,
+                    });
+
+                    await newsReview.save();
+
+                    return newsReview;
+                } catch (err) {
+                    throw new Error(err.message || "Failed to generate news article");
+                }
+            }
+        },
+        updateNewsReview: {
+            type: MutationResponseType,
+            args: {
+                id: { type: GraphQLNonNull(GraphQLID) },
+                title: { type: GraphQLString },
+                content: { type: GraphQLString },
+                summary: { type: GraphQLString },
+                isReviewed: { type: GraphQLBoolean },
+                isPublished: { type: GraphQLBoolean }
+            },
+            async resolve(parent, { id, title, content, summary, isReviewed, isPublished }, context) {
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
+
+                try {
+                    const updateData: any = {};
+                    if (title !== undefined) updateData.title = title;
+                    if (content !== undefined) updateData.content = content;
+                    if (summary !== undefined) updateData.summary = summary;
+                    if (isReviewed !== undefined) updateData.isReviewed = isReviewed;
+                    if (isPublished !== undefined) {
+                        updateData.isPublished = isPublished;
+                        if (isPublished) {
+                            updateData.publishedAt = new Date();
+                        }
+                    }
+
+                    const newsReview = await NewsReview.findByIdAndUpdate(id, updateData, { new: true });
+                    if (!newsReview) {
+                        return { success: false, message: "News review not found" };
+                    }
+
+                    return { success: true, message: "News review updated successfully" };
+                } catch (err) {
+                    return {
+                        success: false,
+                        message: err.message || "Failed to update news review"
+                    };
+                }
+            }
+        },
+        deleteNewsReview: {
+            type: MutationResponseType,
+            args: {
+                id: { type: GraphQLNonNull(GraphQLID) }
+            },
+            async resolve(parent, { id }, context) {
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
+
+                try {
+                    const newsReview = await NewsReview.findByIdAndDelete(id);
+                    if (!newsReview) {
+                        return { success: false, message: "News review not found" };
+                    }
+
+                    return { success: true, message: "News review deleted successfully" };
+                } catch (err) {
+                    return {
+                        success: false,
+                        message: err.message || "Failed to delete news review"
                     };
                 }
             }
