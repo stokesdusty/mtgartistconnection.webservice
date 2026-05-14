@@ -1064,6 +1064,55 @@ const mutations = new GraphQLObjectType({
                 }
             }
         },
+        generateManualNewsArticle: {
+            type: NewsReviewType,
+            args: {
+                artistName: { type: GraphQLNonNull(GraphQLString) },
+                content: { type: GraphQLNonNull(GraphQLString) },
+                sourceUrl: { type: GraphQLString }
+            },
+            async resolve(parent, { artistName, content, sourceUrl }, context) {
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
+
+                try {
+                    // Find the artist by name
+                    const artist = await Artist.findOne({ name: artistName });
+                    if (!artist) {
+                        throw new Error(`Artist "${artistName}" not found`);
+                    }
+
+                    // Generate the news article using AI
+                    const article = await generateNewsArticle(
+                        artistName,
+                        content,
+                        sourceUrl || '',
+                        'manual'
+                    );
+
+                    // Create a placeholder ObjectId for artistPostId since this is manual
+                    const mongoose = require('mongoose');
+                    const placeholderPostId = new mongoose.Types.ObjectId();
+
+                    // Create the news review entry
+                    const newsReview = new NewsReview({
+                        artistPostId: placeholderPostId,
+                        artistId: artist._id,
+                        artistName: artistName,
+                        title: article.title,
+                        content: article.content,
+                        summary: article.summary,
+                        sourcePostUrl: sourceUrl || '',
+                    });
+
+                    await newsReview.save();
+
+                    return newsReview;
+                } catch (err) {
+                    throw new Error(err.message || "Failed to generate manual news article");
+                }
+            }
+        },
         updateNewsReview: {
             type: MutationResponseType,
             args: {

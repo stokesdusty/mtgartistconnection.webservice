@@ -27,51 +27,84 @@ const fieldNameMap: Record<string, string> = {
 };
 
 export const generateDigestEmail = (artistChanges: ArtistChangeData[]): string => {
+  const baseUrl = process.env.FRONTEND_URL || 'https://www.mtgartistconnection.com';
+
   const artistSections = artistChanges.map(({ artistName, changes }) => {
     // Group by change type
     const updates = changes.filter(c => c.changeType === 'update');
     const events = changes.filter(c => c.changeType === 'added_to_event');
+    const newsArticles = changes.filter(c => c.changeType === 'news_article');
 
     let section = `
       <div style="margin-bottom: 30px; border-bottom: 2px solid #507A60; padding-bottom: 20px;">
         <h2 style="color: #507A60; margin-bottom: 15px;">🎨 ${artistName}</h2>
     `;
 
+    // News Articles Section
+    if (newsArticles.length > 0) {
+      section += `
+        <div style="background-color: #f0f7f2; border-left: 4px solid #507A60; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0;">
+          <h3 style="color: #333; font-size: 16px; margin: 0 0 10px 0;">📰 New News Article${newsArticles.length > 1 ? 's' : ''}</h3>
+      `;
+      newsArticles.forEach(article => {
+        section += `
+          <div style="margin-bottom: 12px;">
+            <strong style="color: #507A60;">${article.newsArticleTitle || 'New Article'}</strong>
+            <p style="margin: 5px 0; color: #555; font-size: 14px;">${article.newsArticleSummary || ''}</p>
+          </div>
+        `;
+      });
+      section += `
+          <a href="${baseUrl}/news/artist/${encodeURIComponent(artistName)}"
+             style="color: #507A60; text-decoration: none; font-weight: 600; font-size: 14px;">
+            Read full article${newsArticles.length > 1 ? 's' : ''} →
+          </a>
+        </div>
+      `;
+    }
+
+    // Profile Updates Section
     if (updates.length > 0) {
       // Get unique fields across all updates
       const allFields = [...new Set(updates.flatMap(u => u.fieldsChanged))];
       section += `
-        <h3 style="color: #333; font-size: 16px; margin-top: 15px;">✏️ Profile Updates</h3>
-        <ul style="margin: 10px 0; padding-left: 20px;">
+        <div style="background-color: #fff8e6; border-left: 4px solid #f0ad4e; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0;">
+          <h3 style="color: #333; font-size: 16px; margin: 0 0 10px 0;">✏️ Profile Updated</h3>
+          <ul style="margin: 0; padding-left: 20px; color: #555;">
       `;
       allFields.forEach(field => {
-        section += `<li>Updated ${fieldNameMap[field] || field}</li>`;
+        section += `<li style="margin-bottom: 4px;">${fieldNameMap[field] || field}</li>`;
       });
-      section += `</ul>`;
+      section += `
+          </ul>
+        </div>
+      `;
     }
 
+    // Events Section
     if (events.length > 0) {
       section += `
-        <h3 style="color: #333; font-size: 16px; margin-top: 15px;">📅 Upcoming Signing Events</h3>
-        <ul style="margin: 10px 0; padding-left: 20px;">
+        <div style="background-color: #e6f3ff; border-left: 4px solid #5bc0de; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0;">
+          <h3 style="color: #333; font-size: 16px; margin: 0 0 10px 0;">📅 Added to Event${events.length > 1 ? 's' : ''}</h3>
       `;
       events.forEach(event => {
         const startDate = new Date(event.eventStartDate).toLocaleDateString();
         const endDate = new Date(event.eventEndDate).toLocaleDateString();
         section += `
-          <li style="margin-bottom: 10px;">
-            <strong>${event.eventName}</strong><br/>
-            ${startDate}${startDate !== endDate ? ` - ${endDate}` : ''}<br/>
-            Location: ${event.eventLocation}
-          </li>
+          <div style="margin-bottom: 10px;">
+            <strong style="color: #31708f;">${event.eventName}</strong><br/>
+            <span style="color: #555; font-size: 14px;">
+              ${startDate}${startDate !== endDate ? ` - ${endDate}` : ''} • ${event.eventLocation}
+            </span>
+          </div>
         `;
       });
-      section += `</ul>`;
+      section += `</div>`;
     }
 
     section += `
         <p style="margin-top: 15px;">
-          <a href="${process.env.FRONTEND_URL || 'https://mtgartistconnection.com'}/artist/${encodeURIComponent(artistName)}"
+          <a href="${baseUrl}/artist/${encodeURIComponent(artistName)}"
              style="color: #507A60; text-decoration: none; font-weight: 600;">
             View ${artistName}'s Profile →
           </a>
@@ -103,11 +136,11 @@ export const generateDigestEmail = (artistChanges: ArtistChangeData[]): string =
 
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 14px; color: #666;">
           <p>
-            <a href="${process.env.FRONTEND_URL || 'https://mtgartistconnection.com'}/settings"
+            <a href="${baseUrl}/settings"
                style="color: #507A60; text-decoration: none; font-weight: 600;">
               Manage email preferences
             </a> |
-            <a href="${process.env.FRONTEND_URL || 'https://mtgartistconnection.com'}/settings"
+            <a href="${baseUrl}/settings"
                style="color: #507A60; text-decoration: none; font-weight: 600;">
               Unfollow artists
             </a>
@@ -116,7 +149,7 @@ export const generateDigestEmail = (artistChanges: ArtistChangeData[]): string =
             You're receiving this email because you follow these artists and have artist update emails enabled.
           </p>
           <p style="margin-top: 10px;">
-            <a href="${process.env.FRONTEND_URL || 'https://mtgartistconnection.com'}"
+            <a href="${baseUrl}"
                style="color: #507A60; text-decoration: none; font-weight: 600;">
               Visit MTG Artist Connection
             </a>
