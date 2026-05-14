@@ -75,6 +75,13 @@ const RootQuery = new GraphQLObjectType({
                 return await MapArtistToEvent.find({ eventId: eventId }).sort({artistName: 1}).exec();
             },
         },
+        artistsByEventIds: {
+            type: GraphQLList(MapArtistToEventType),
+            args: { eventIds: { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLString))) }},
+            async resolve(parent, { eventIds }) {
+                return await MapArtistToEvent.find({ eventId: { $in: eventIds } }).sort({artistName: 1}).exec();
+            },
+        },
         cardPricesByCards: {
             type: GraphQLList(CardPriceType),
             args: { cards: { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(CardLookupInput))) }},
