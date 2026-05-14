@@ -54,13 +54,16 @@ async function syncBluesky(artist: any) {
     if (!handle) return;
 
     // Bluesky has public endpoints that don't always require auth for basic feeds
-    const apiUrl = `https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=${handle}&limit=5`;
+    const apiUrl = `https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=${handle}&limit=5&filter=posts_no_replies&includePins=false`;
     const response = await axios.get(apiUrl);
     
     const feeds = response.data.feed || [];
-    
+
+    // Filter out reposts (items with a reason field are reposts)
+    const originalPosts = feeds.filter((item: any) => !item.reason);
+
     let postsSaved = 0;
-    for (const item of feeds) {
+    for (const item of originalPosts) {
       const post = item.post;
       const createdAt = new Date(post.record.createdAt);
 
