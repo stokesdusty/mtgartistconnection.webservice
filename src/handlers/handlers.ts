@@ -168,11 +168,48 @@ const RootQuery = new GraphQLObjectType({
                 limit: { type: GraphQLInt, defaultValue: 50 }
             },
             async resolve(parent, { isReviewed, isPublished, limit }, context) {
+                // Allow public access for published articles only
+                if (isPublished === true && isReviewed === undefined) {
+                    const query: any = { isPublished: true };
+                    return await NewsReview.find(query).sort({ publishedAt: -1 }).limit(limit);
+                }
+                // Require admin for other queries
                 requireAdmin(context.isAuthenticated, context.userRole);
                 const query: any = {};
                 if (isReviewed !== undefined) query.isReviewed = isReviewed;
                 if (isPublished !== undefined) query.isPublished = isPublished;
                 return await NewsReview.find(query).sort({ generatedAt: -1 }).limit(limit);
+            }
+        },
+        newsReview: {
+            type: NewsReviewType,
+            args: {
+                id: { type: GraphQLNonNull(GraphQLID) }
+            },
+            async resolve(parent, { id }, context) {
+                const article = await NewsReview.findById(id);
+                // Only return if published (public access) or user is admin
+                if (article && article.isPublished) {
+                    return article;
+                }
+                // Require admin for unpublished articles
+                requireAdmin(context.isAuthenticated, context.userRole);
+                return article;
+            }
+        },
+        newsReviewsByArtist: {
+            type: GraphQLList(NewsReviewType),
+            args: {
+                artistName: { type: GraphQLNonNull(GraphQLString) },
+                limit: { type: GraphQLInt, defaultValue: 50 }
+            },
+            async resolve(parent, { artistName, limit }, context) {
+                // Public access - only return published articles for the artist
+                const query = {
+                    artistName: { $regex: new RegExp(`^${artistName}$`, 'i') },
+                    isPublished: true
+                };
+                return await NewsReview.find(query).sort({ publishedAt: -1 }).limit(limit);
             }
         },
     },
