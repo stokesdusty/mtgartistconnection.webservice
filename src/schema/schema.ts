@@ -171,10 +171,16 @@ export const NewsReviewType = new GraphQLObjectType({
         title: { type: GraphQLNonNull(GraphQLString) },
         content: { type: GraphQLNonNull(GraphQLString) },
         summary: { type: GraphQLNonNull(GraphQLString) },
-        sourcePostUrl: { type: GraphQLNonNull(GraphQLString) },
-        generatedAt: { type: GraphQLString },
+        sourcePostUrl: { type: GraphQLString },
+        generatedAt: {
+            type: GraphQLString,
+            resolve: (parent) => parent.generatedAt ? new Date(parent.generatedAt).toISOString() : null
+        },
         isReviewed: { type: GraphQLBoolean },
         isPublished: { type: GraphQLBoolean },
-        publishedAt: { type: GraphQLString },
+        publishedAt: {
+            type: GraphQLString,
+            resolve: (parent) => parent.publishedAt ? new Date(parent.publishedAt).toISOString() : null
+        },
     }),
 });

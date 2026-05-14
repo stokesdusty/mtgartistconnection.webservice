@@ -1141,7 +1141,8 @@ const mutations = new GraphQLObjectType({
                     if (isReviewed !== undefined) updateData.isReviewed = isReviewed;
                     if (isPublished !== undefined) {
                         updateData.isPublished = isPublished;
-                        if (isPublished) {
+                        // Only set publishedAt when publishing for the first time
+                        if (isPublished && !existingNewsReview.isPublished) {
                             updateData.publishedAt = new Date();
                         }
                     }
