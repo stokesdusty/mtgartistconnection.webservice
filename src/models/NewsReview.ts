@@ -21,7 +21,7 @@ const NewsReviewSchema: Schema = new Schema({
   title: { type: String, required: true },
   content: { type: String, required: true },
   summary: { type: String, required: true },
-  sourcePostUrl: { type: String, required: true },
+  sourcePostUrl: { type: String, default: '' },
   generatedAt: { type: Date, default: Date.now },
   isReviewed: { type: Boolean, default: false },
   isPublished: { type: Boolean, default: false },
@@ -32,7 +32,7 @@ const NewsReviewSchema: Schema = new Schema({
 NewsReviewSchema.index({ isReviewed: 1 });
 NewsReviewSchema.index({ isPublished: 1 });
 
-// Ensure we don't create duplicate news articles for the same post
-NewsReviewSchema.index({ artistPostId: 1 }, { unique: true });
+// Index for querying by artistPostId (not unique to allow manual submissions with placeholder IDs)
+NewsReviewSchema.index({ artistPostId: 1 });
 
 export default mongoose.model<INewsReview>('NewsReview', NewsReviewSchema);
