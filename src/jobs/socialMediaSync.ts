@@ -75,16 +75,20 @@ async function syncBluesky(artist: any) {
         const result = await ArtistPost.findOneAndUpdate(
           { platform: 'bluesky', externalPostId: post.cid },
           {
-            artistId: artist._id,
-            artistName: artist.name,
-            platform: 'bluesky',
-            externalPostId: post.cid,
-            content: post.record.text || '', // Ensure content is not undefined
-            postUrl: `https://bsky.app/profile/${handle}/post/${post.uri.split('/').pop()}`,
-            postDate: createdAt,
-            isReviewed: false
+            $set: {
+              artistId: artist._id,
+              artistName: artist.name,
+              platform: 'bluesky',
+              externalPostId: post.cid,
+              content: post.record.text || '',
+              postUrl: `https://bsky.app/profile/${handle}/post/${post.uri.split('/').pop()}`,
+              postDate: createdAt,
+            },
+            $setOnInsert: {
+              isReviewed: false
+            }
           },
-          { upsert: true, new: true } // new: true returns the modified document rather than the original
+          { upsert: true, new: true }
         );
         postsSaved++;
         console.log(`[${artist.name}] Saved/Updated Bluesky post: ${result.postUrl} (ID: ${result.externalPostId})`);
