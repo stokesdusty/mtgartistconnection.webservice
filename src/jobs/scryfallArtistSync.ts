@@ -24,6 +24,7 @@ const IGNORED_SCRYFALL_NAMES = new Set([
   'poison project',
   'poison project (use anditya dita instead)',
   'ray',
+  'stan goldberg',
   'steve lavigne'
 ]);
 
