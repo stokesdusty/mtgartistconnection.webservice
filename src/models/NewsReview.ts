@@ -2,12 +2,16 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface INewsReview extends Document {
   artistPostId: mongoose.Types.ObjectId;
-  artistId: mongoose.Types.ObjectId;
-  artistName: string;
+  // Support both single artist (legacy) and multiple artists
+  artistId?: mongoose.Types.ObjectId;
+  artistName?: string;
+  artistIds: mongoose.Types.ObjectId[];
+  artistNames: string[];
   title: string;
   content: string;
   summary: string;
   sourcePostUrl: string;
+  imageUrl?: string;
   generatedAt: Date;
   isReviewed: boolean;
   isPublished: boolean;
@@ -16,12 +20,17 @@ export interface INewsReview extends Document {
 
 const NewsReviewSchema: Schema = new Schema({
   artistPostId: { type: Schema.Types.ObjectId, ref: 'ArtistPost', required: true },
-  artistId: { type: Schema.Types.ObjectId, ref: 'Artist', required: true },
-  artistName: { type: String, required: true },
+  // Legacy single artist fields (for backwards compatibility)
+  artistId: { type: Schema.Types.ObjectId, ref: 'Artist' },
+  artistName: { type: String },
+  // New multi-artist fields
+  artistIds: [{ type: Schema.Types.ObjectId, ref: 'Artist' }],
+  artistNames: [{ type: String }],
   title: { type: String, required: true },
   content: { type: String, required: true },
   summary: { type: String, required: true },
   sourcePostUrl: { type: String, default: '' },
+  imageUrl: { type: String, default: '' },
   generatedAt: { type: Date, default: Date.now },
   isReviewed: { type: Boolean, default: false },
   isPublished: { type: Boolean, default: false },

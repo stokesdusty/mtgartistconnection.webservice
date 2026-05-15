@@ -1,5 +1,5 @@
 import { GraphQLBoolean, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, ArtistPostType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, SigningEventType, UserType } from "../schema/schema";
+import { ArtistType, ArtistPostType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningEventType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
@@ -15,6 +15,7 @@ import NewsReview from "../models/NewsReview";
 import { generateToken, requireAuth, requireAdmin } from "../middleware/auth";
 import { sendWelcomeEmail } from "../services/emailService";
 import { generateNewsArticle } from "../services/aiNewsService";
+import { generatePresignedUploadUrl } from "../services/s3UploadService";
 
 type DocumentType = Document<any, any, any>;
 
@@ -1067,42 +1068,58 @@ const mutations = new GraphQLObjectType({
         generateManualNewsArticle: {
             type: NewsReviewType,
             args: {
-                artistName: { type: GraphQLNonNull(GraphQLString) },
+                artistNames: { type: GraphQLList(GraphQLString) },
                 content: { type: GraphQLNonNull(GraphQLString) },
-                sourceUrl: { type: GraphQLString }
+                sourceUrl: { type: GraphQLString },
+                imageUrl: { type: GraphQLString }
             },
-            async resolve(parent, { artistName, content, sourceUrl }, context) {
+            async resolve(parent, { artistNames, content, sourceUrl, imageUrl }, context) {
                 // Require admin privileges
                 requireAdmin(context.isAuthenticated, context.userRole);
 
                 try {
-                    // Find the artist by name
-                    const artist = await Artist.findOne({ name: artistName });
-                    if (!artist) {
-                        throw new Error(`Artist "${artistName}" not found`);
+                    const mongoose = require('mongoose');
+                    const artistIds: any[] = [];
+                    const validArtistNames: string[] = [];
+
+                    // Handle multiple artists (or no artists)
+                    if (artistNames && artistNames.length > 0) {
+                        for (const name of artistNames) {
+                            const artist = await Artist.findOne({ name });
+                            if (artist) {
+                                artistIds.push(artist._id);
+                                validArtistNames.push(name);
+                            }
+                        }
                     }
 
                     // Generate the news article using AI
+                    // Pass first artist name for context, or empty string if no artists
+                    const primaryArtistName = validArtistNames.length > 0 ? validArtistNames[0] : '';
                     const article = await generateNewsArticle(
-                        artistName,
+                        primaryArtistName,
                         content,
                         sourceUrl || '',
                         'manual'
                     );
 
                     // Create a placeholder ObjectId for artistPostId since this is manual
-                    const mongoose = require('mongoose');
                     const placeholderPostId = new mongoose.Types.ObjectId();
 
-                    // Create the news review entry
+                    // Create the news review entry with multi-artist support
                     const newsReview = new NewsReview({
                         artistPostId: placeholderPostId,
-                        artistId: artist._id,
-                        artistName: artistName,
+                        // Set legacy fields for backwards compatibility
+                        artistId: artistIds.length > 0 ? artistIds[0] : null,
+                        artistName: validArtistNames.length > 0 ? validArtistNames[0] : null,
+                        // Set new array fields
+                        artistIds: artistIds,
+                        artistNames: validArtistNames,
                         title: article.title,
                         content: article.content,
                         summary: article.summary,
                         sourcePostUrl: sourceUrl || '',
+                        imageUrl: imageUrl || '',
                     });
 
                     await newsReview.save();
@@ -1110,6 +1127,24 @@ const mutations = new GraphQLObjectType({
                     return newsReview;
                 } catch (err) {
                     throw new Error(err.message || "Failed to generate manual news article");
+                }
+            }
+        },
+        getPresignedUploadUrl: {
+            type: PresignedUrlType,
+            args: {
+                filename: { type: GraphQLNonNull(GraphQLString) },
+                contentType: { type: GraphQLNonNull(GraphQLString) }
+            },
+            async resolve(parent, { filename, contentType }, context) {
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
+
+                try {
+                    const result = await generatePresignedUploadUrl(filename, contentType);
+                    return result;
+                } catch (err) {
+                    throw new Error(err.message || "Failed to generate presigned URL");
                 }
             }
         },

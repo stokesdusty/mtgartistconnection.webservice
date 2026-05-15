@@ -161,17 +161,47 @@ export const ArtistPostType = new GraphQLObjectType({
     }),
 });
 
+export const PresignedUrlType = new GraphQLObjectType({
+    name: "PresignedUrlType",
+    fields: () => ({
+        uploadUrl: { type: GraphQLNonNull(GraphQLString) },
+        imageUrl: { type: GraphQLNonNull(GraphQLString) },
+        key: { type: GraphQLNonNull(GraphQLString) },
+    }),
+});
+
 export const NewsReviewType = new GraphQLObjectType({
     name: "NewsReviewType",
     fields: () => ({
         id: { type: GraphQLNonNull(GraphQLID) },
         artistPostId: { type: GraphQLNonNull(GraphQLID) },
-        artistId: { type: GraphQLNonNull(GraphQLID) },
-        artistName: { type: GraphQLNonNull(GraphQLString) },
+        // Legacy single artist fields (for backwards compatibility)
+        artistId: {
+            type: GraphQLID,
+            resolve: (parent) => {
+                // Return legacy field or first from array
+                if (parent.artistId) return parent.artistId;
+                if (parent.artistIds && parent.artistIds.length > 0) return parent.artistIds[0];
+                return null;
+            }
+        },
+        artistName: {
+            type: GraphQLString,
+            resolve: (parent) => {
+                // Return legacy field or first from array
+                if (parent.artistName) return parent.artistName;
+                if (parent.artistNames && parent.artistNames.length > 0) return parent.artistNames[0];
+                return null;
+            }
+        },
+        // New multi-artist fields
+        artistIds: { type: GraphQLList(GraphQLID) },
+        artistNames: { type: GraphQLList(GraphQLString) },
         title: { type: GraphQLNonNull(GraphQLString) },
         content: { type: GraphQLNonNull(GraphQLString) },
         summary: { type: GraphQLNonNull(GraphQLString) },
         sourcePostUrl: { type: GraphQLString },
+        imageUrl: { type: GraphQLString },
         generatedAt: {
             type: GraphQLString,
             resolve: (parent) => parent.generatedAt ? new Date(parent.generatedAt).toISOString() : null
