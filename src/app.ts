@@ -19,6 +19,10 @@ config();
 
 const app = express();
 
+// Increase body size limit for base64 image uploads (10MB)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
 // Configure CORS with whitelist of allowed origins
 const allowedOrigins = process.env.CORS_ORIGIN 
     ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) 
