@@ -1,49 +1,52 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
 
-const NEWS_IMAGES_BUCKET = process.env.NEWS_IMAGES_BUCKET || "mtgartistconnection-news-images";
+const S3_BUCKET = "mtgartistconnection";
+const AWS_REGION = process.env.AWS_REGION || "us-west-1";
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || "us-west-1",
+  region: AWS_REGION,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
 });
 
-export interface PresignedUrlResponse {
-  uploadUrl: string;
+export interface UploadResponse {
   imageUrl: string;
   key: string;
 }
 
 /**
- * Generate a presigned URL for uploading an image directly to S3
- * This allows the client to upload directly without going through our server
+ * Upload an image to S3 from a base64 string
+ * This uploads server-side to avoid CORS issues with presigned URLs
  */
-export const generatePresignedUploadUrl = async (
+export const uploadImageFromBase64 = async (
+  base64Data: string,
   filename: string,
   contentType: string
-): Promise<PresignedUrlResponse> => {
+): Promise<UploadResponse> => {
+  // Remove data URL prefix if present (e.g., "data:image/png;base64,")
+  const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, "");
+  const buffer = Buffer.from(base64Content, "base64");
+
   // Generate a unique key for the image
   const extension = filename.split(".").pop() || "jpg";
   const key = `news-images/${uuidv4()}.${extension}`;
 
   const command = new PutObjectCommand({
-    Bucket: NEWS_IMAGES_BUCKET,
+    Bucket: S3_BUCKET,
     Key: key,
+    Body: buffer,
     ContentType: contentType,
   });
 
-  // Generate presigned URL valid for 5 minutes
-  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+  await s3Client.send(command);
 
   // The final public URL where the image will be accessible
-  const imageUrl = `https://${NEWS_IMAGES_BUCKET}.s3.${process.env.AWS_REGION || "us-west-1"}.amazonaws.com/${key}`;
+  const imageUrl = `https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${key}`;
 
   return {
-    uploadUrl,
     imageUrl,
     key,
   };
@@ -59,7 +62,7 @@ export const deleteImage = async (imageUrl: string): Promise<boolean> => {
     const key = url.pathname.substring(1); // Remove leading slash
 
     const command = new DeleteObjectCommand({
-      Bucket: NEWS_IMAGES_BUCKET,
+      Bucket: S3_BUCKET,
       Key: key,
     });
 

@@ -15,7 +15,7 @@ import NewsReview from "../models/NewsReview";
 import { generateToken, requireAuth, requireAdmin } from "../middleware/auth";
 import { sendWelcomeEmail } from "../services/emailService";
 import { generateNewsArticle } from "../services/aiNewsService";
-import { generatePresignedUploadUrl } from "../services/s3UploadService";
+import { uploadImageFromBase64 } from "../services/s3UploadService";
 
 type DocumentType = Document<any, any, any>;
 
@@ -1130,21 +1130,26 @@ const mutations = new GraphQLObjectType({
                 }
             }
         },
-        getPresignedUploadUrl: {
+        uploadNewsImage: {
             type: PresignedUrlType,
             args: {
+                base64Data: { type: GraphQLNonNull(GraphQLString) },
                 filename: { type: GraphQLNonNull(GraphQLString) },
                 contentType: { type: GraphQLNonNull(GraphQLString) }
             },
-            async resolve(parent, { filename, contentType }, context) {
+            async resolve(parent, { base64Data, filename, contentType }, context) {
                 // Require admin privileges
                 requireAdmin(context.isAuthenticated, context.userRole);
 
                 try {
-                    const result = await generatePresignedUploadUrl(filename, contentType);
-                    return result;
+                    const result = await uploadImageFromBase64(base64Data, filename, contentType);
+                    return {
+                        uploadUrl: '', // Not used in server-side upload
+                        imageUrl: result.imageUrl,
+                        key: result.key
+                    };
                 } catch (err) {
-                    throw new Error(err.message || "Failed to generate presigned URL");
+                    throw new Error(err.message || "Failed to upload image");
                 }
             }
         },
