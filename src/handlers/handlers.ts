@@ -1,8 +1,9 @@
 import { GraphQLBoolean, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, ArtistPostType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningEventType, UserType } from "../schema/schema";
+import { ArtistType, ArtistPostType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningEventType, UserCardCollectionItemType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
+import UserCardCollection from "../models/UserCardCollection";
 import SigningEvent from "../models/SigningEvent";
 import { hashSync, compareSync } from "bcrypt-nodejs";
 import MapArtistToEvent from "../models/MapArtistToEvent";
@@ -219,6 +220,19 @@ const RootQuery = new GraphQLObjectType({
                 };
                 return await NewsReview.find(query).sort({ publishedAt: -1 }).limit(limit);
             }
+        },
+        userCardCollection: {
+            type: GraphQLList(UserCardCollectionItemType),
+            args: {
+                scryfallIds: { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLString))) },
+            },
+            async resolve(parent, { scryfallIds }, context) {
+                requireAuth(context.isAuthenticated);
+                return await UserCardCollection.find({
+                    userId: context.userId,
+                    scryfallId: { $in: scryfallIds },
+                });
+            },
         },
     },
 });
@@ -1238,6 +1252,41 @@ const mutations = new GraphQLObjectType({
                     };
                 }
             }
+        },
+        toggleCardCollectionField: {
+            type: UserCardCollectionItemType,
+            args: {
+                scryfallId:      { type: GraphQLNonNull(GraphQLString) },
+                cardName:        { type: GraphQLNonNull(GraphQLString) },
+                set:             { type: GraphQLNonNull(GraphQLString) },
+                collectorNumber: { type: GraphQLNonNull(GraphQLString) },
+                field:           { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(parent, { scryfallId, cardName, set, collectorNumber, field }, context) {
+                requireAuth(context.isAuthenticated);
+
+                const validFields = ['ownedNonfoil', 'ownedFoil', 'signedNonfoil', 'signedFoil', 'wishlistSigned'];
+                if (!validFields.includes(field)) {
+                    throw new Error("Invalid collection field");
+                }
+
+                try {
+                    let item = await UserCardCollection.findOne({ userId: context.userId, scryfallId });
+                    if (!item) {
+                        item = new UserCardCollection({
+                            userId: context.userId,
+                            scryfallId,
+                            cardName,
+                            set,
+                            collectorNumber,
+                        });
+                    }
+                    (item as any)[field] = !(item as any)[field];
+                    return await item.save();
+                } catch (err) {
+                    throw new Error("Failed to update card collection");
+                }
+            },
         },
     },
 });

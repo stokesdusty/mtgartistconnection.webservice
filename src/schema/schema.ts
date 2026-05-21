@@ -161,6 +161,22 @@ export const ArtistPostType = new GraphQLObjectType({
     }),
 });
 
+export const UserCardCollectionItemType = new GraphQLObjectType({
+    name: "UserCardCollectionItemType",
+    fields: () => ({
+        id:              { type: GraphQLNonNull(GraphQLID) },
+        scryfallId:      { type: GraphQLNonNull(GraphQLString) },
+        cardName:        { type: GraphQLNonNull(GraphQLString) },
+        set:             { type: GraphQLNonNull(GraphQLString) },
+        collectorNumber: { type: GraphQLNonNull(GraphQLString) },
+        ownedNonfoil:    { type: GraphQLBoolean },
+        ownedFoil:       { type: GraphQLBoolean },
+        signedNonfoil:   { type: GraphQLBoolean },
+        signedFoil:      { type: GraphQLBoolean },
+        wishlistSigned:  { type: GraphQLBoolean },
+    }),
+});
+
 export const PresignedUrlType = new GraphQLObjectType({
     name: "PresignedUrlType",
     fields: () => ({
