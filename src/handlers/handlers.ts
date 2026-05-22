@@ -1265,7 +1265,7 @@ const mutations = new GraphQLObjectType({
             async resolve(parent, { scryfallId, cardName, set, collectorNumber, field }, context) {
                 requireAuth(context.isAuthenticated);
 
-                const validFields = ['ownedNonfoil', 'ownedFoil', 'signedNonfoil', 'signedFoil', 'wishlistSigned'];
+                const validFields = ['signedNonfoil', 'signedFoil', 'wishlistSigned', 'artistProof', 'artistProofFoil'];
                 if (!validFields.includes(field)) {
                     throw new Error("Invalid collection field");
                 }

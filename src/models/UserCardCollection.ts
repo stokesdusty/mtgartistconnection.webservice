@@ -6,11 +6,11 @@ const userCardCollectionSchema = new Schema({
     cardName:        { type: String, required: true },
     set:             { type: String, required: true },
     collectorNumber: { type: String, required: true },
-    ownedNonfoil:    { type: Boolean, default: false },
-    ownedFoil:       { type: Boolean, default: false },
     signedNonfoil:   { type: Boolean, default: false },
     signedFoil:      { type: Boolean, default: false },
     wishlistSigned:  { type: Boolean, default: false },
+    artistProof:     { type: Boolean, default: false },
+    artistProofFoil: { type: Boolean, default: false },
 });
 
 userCardCollectionSchema.index({ userId: 1, scryfallId: 1 }, { unique: true });

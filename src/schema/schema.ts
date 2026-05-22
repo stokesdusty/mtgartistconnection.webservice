@@ -169,11 +169,11 @@ export const UserCardCollectionItemType = new GraphQLObjectType({
         cardName:        { type: GraphQLNonNull(GraphQLString) },
         set:             { type: GraphQLNonNull(GraphQLString) },
         collectorNumber: { type: GraphQLNonNull(GraphQLString) },
-        ownedNonfoil:    { type: GraphQLBoolean },
-        ownedFoil:       { type: GraphQLBoolean },
         signedNonfoil:   { type: GraphQLBoolean },
         signedFoil:      { type: GraphQLBoolean },
         wishlistSigned:  { type: GraphQLBoolean },
+        artistProof:     { type: GraphQLBoolean },
+        artistProofFoil: { type: GraphQLBoolean },
     }),
 });
 
