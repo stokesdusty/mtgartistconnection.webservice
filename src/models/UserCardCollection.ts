@@ -4,6 +4,7 @@ const userCardCollectionSchema = new Schema({
     userId:          { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     scryfallId:      { type: String, required: true },
     cardName:        { type: String, required: true },
+    artistName:      { type: String, default: "" },
     set:             { type: String, required: true },
     collectorNumber: { type: String, required: true },
     signedNonfoil:   { type: Boolean, default: false },

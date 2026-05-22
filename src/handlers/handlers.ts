@@ -234,6 +234,22 @@ const RootQuery = new GraphQLObjectType({
                 });
             },
         },
+        myCardCollection: {
+            type: GraphQLList(UserCardCollectionItemType),
+            async resolve(parent, args, context) {
+                requireAuth(context.isAuthenticated);
+                return await UserCardCollection.find({
+                    userId: context.userId,
+                    $or: [
+                        { signedNonfoil: true },
+                        { signedFoil: true },
+                        { wishlistSigned: true },
+                        { artistProof: true },
+                        { artistProofFoil: true },
+                    ],
+                });
+            },
+        },
     },
 });
 
@@ -1258,11 +1274,12 @@ const mutations = new GraphQLObjectType({
             args: {
                 scryfallId:      { type: GraphQLNonNull(GraphQLString) },
                 cardName:        { type: GraphQLNonNull(GraphQLString) },
+                artistName:      { type: GraphQLString },
                 set:             { type: GraphQLNonNull(GraphQLString) },
                 collectorNumber: { type: GraphQLNonNull(GraphQLString) },
                 field:           { type: GraphQLNonNull(GraphQLString) },
             },
-            async resolve(parent, { scryfallId, cardName, set, collectorNumber, field }, context) {
+            async resolve(parent, { scryfallId, cardName, artistName, set, collectorNumber, field }, context) {
                 requireAuth(context.isAuthenticated);
 
                 const validFields = ['signedNonfoil', 'signedFoil', 'wishlistSigned', 'artistProof', 'artistProofFoil'];
@@ -1277,9 +1294,12 @@ const mutations = new GraphQLObjectType({
                             userId: context.userId,
                             scryfallId,
                             cardName,
+                            artistName: artistName || "",
                             set,
                             collectorNumber,
                         });
+                    } else if (artistName && !item.get('artistName')) {
+                        item.set('artistName', artistName);
                     }
                     (item as any)[field] = !(item as any)[field];
                     return await item.save();

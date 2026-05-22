@@ -167,6 +167,7 @@ export const UserCardCollectionItemType = new GraphQLObjectType({
         id:              { type: GraphQLNonNull(GraphQLID) },
         scryfallId:      { type: GraphQLNonNull(GraphQLString) },
         cardName:        { type: GraphQLNonNull(GraphQLString) },
+        artistName:      { type: GraphQLString },
         set:             { type: GraphQLNonNull(GraphQLString) },
         collectorNumber: { type: GraphQLNonNull(GraphQLString) },
         signedNonfoil:   { type: GraphQLBoolean },
