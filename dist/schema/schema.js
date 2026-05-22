@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ArtistPostType = exports.ArtistChangeType = exports.MutationResponseType = exports.CardKingdomPriceType = exports.CardPriceType = exports.MapArtistToEventType = exports.SigningEventType = exports.AuthResponseType = exports.UserType = exports.EmailPreferencesType = exports.ArtistType = void 0;
+exports.NewsReviewType = exports.PresignedUrlType = exports.UserCardCollectionItemType = exports.ArtistPostType = exports.ArtistChangeType = exports.MutationResponseType = exports.CardKingdomPriceType = exports.CardPriceType = exports.MapArtistToEventType = exports.SigningEventType = exports.AuthResponseType = exports.UserType = exports.EmailPreferencesType = exports.ArtistType = void 0;
 const graphql_1 = require("graphql");
 exports.ArtistType = new graphql_1.GraphQLObjectType({
     name: "ArtistType",
@@ -150,6 +150,78 @@ exports.ArtistPostType = new graphql_1.GraphQLObjectType({
         postDate: { type: graphql_1.GraphQLString },
         fetchedAt: { type: graphql_1.GraphQLString },
         isReviewed: { type: graphql_1.GraphQLBoolean },
+    }),
+});
+exports.UserCardCollectionItemType = new graphql_1.GraphQLObjectType({
+    name: "UserCardCollectionItemType",
+    fields: () => ({
+        id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+        scryfallId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        cardName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        artistName: { type: graphql_1.GraphQLString },
+        set: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        collectorNumber: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        signedNonfoil: { type: graphql_1.GraphQLBoolean },
+        signedFoil: { type: graphql_1.GraphQLBoolean },
+        wishlistSigned: { type: graphql_1.GraphQLBoolean },
+        artistProof: { type: graphql_1.GraphQLBoolean },
+        artistProofFoil: { type: graphql_1.GraphQLBoolean },
+    }),
+});
+exports.PresignedUrlType = new graphql_1.GraphQLObjectType({
+    name: "PresignedUrlType",
+    fields: () => ({
+        uploadUrl: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        imageUrl: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        key: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+    }),
+});
+exports.NewsReviewType = new graphql_1.GraphQLObjectType({
+    name: "NewsReviewType",
+    fields: () => ({
+        id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+        artistPostId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+        // Legacy single artist fields (for backwards compatibility)
+        artistId: {
+            type: graphql_1.GraphQLID,
+            resolve: (parent) => {
+                // Return legacy field or first from array
+                if (parent.artistId)
+                    return parent.artistId;
+                if (parent.artistIds && parent.artistIds.length > 0)
+                    return parent.artistIds[0];
+                return null;
+            }
+        },
+        artistName: {
+            type: graphql_1.GraphQLString,
+            resolve: (parent) => {
+                // Return legacy field or first from array
+                if (parent.artistName)
+                    return parent.artistName;
+                if (parent.artistNames && parent.artistNames.length > 0)
+                    return parent.artistNames[0];
+                return null;
+            }
+        },
+        // New multi-artist fields
+        artistIds: { type: (0, graphql_1.GraphQLList)(graphql_1.GraphQLID) },
+        artistNames: { type: (0, graphql_1.GraphQLList)(graphql_1.GraphQLString) },
+        title: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        content: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        summary: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+        sourcePostUrl: { type: graphql_1.GraphQLString },
+        imageUrl: { type: graphql_1.GraphQLString },
+        generatedAt: {
+            type: graphql_1.GraphQLString,
+            resolve: (parent) => parent.generatedAt ? new Date(parent.generatedAt).toISOString() : null
+        },
+        isReviewed: { type: graphql_1.GraphQLBoolean },
+        isPublished: { type: graphql_1.GraphQLBoolean },
+        publishedAt: {
+            type: graphql_1.GraphQLString,
+            resolve: (parent) => parent.publishedAt ? new Date(parent.publishedAt).toISOString() : null
+        },
     }),
 });
 //# sourceMappingURL=schema.js.map

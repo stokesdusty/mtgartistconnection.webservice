@@ -8,6 +8,7 @@ const schema_1 = require("../schema/schema");
 const Artist_1 = __importDefault(require("../models/Artist"));
 const mongoose_1 = require("mongoose");
 const User_1 = __importDefault(require("../models/User"));
+const UserCardCollection_1 = __importDefault(require("../models/UserCardCollection"));
 const SigningEvent_1 = __importDefault(require("../models/SigningEvent"));
 const bcrypt_nodejs_1 = require("bcrypt-nodejs");
 const MapArtistToEvent_1 = __importDefault(require("../models/MapArtistToEvent"));
@@ -16,8 +17,11 @@ const CardKingdomPrice_1 = __importDefault(require("../models/CardKingdomPrice")
 const ArtistChange_1 = __importDefault(require("../models/ArtistChange"));
 const EventChange_1 = __importDefault(require("../models/EventChange"));
 const ArtistPost_1 = __importDefault(require("../models/ArtistPost"));
+const NewsReview_1 = __importDefault(require("../models/NewsReview"));
 const auth_1 = require("../middleware/auth");
 const emailService_1 = require("../services/emailService");
+const aiNewsService_1 = require("../services/aiNewsService");
+const s3UploadService_1 = require("../services/s3UploadService");
 const CardLookupInput = new graphql_1.GraphQLInputObjectType({
     name: "CardLookupInput",
     fields: {
@@ -72,6 +76,13 @@ const RootQuery = new graphql_1.GraphQLObjectType({
             args: { eventId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) } },
             async resolve(parent, { eventId }) {
                 return await MapArtistToEvent_1.default.find({ eventId: eventId }).sort({ artistName: 1 }).exec();
+            },
+        },
+        artistsByEventIds: {
+            type: (0, graphql_1.GraphQLList)(schema_1.MapArtistToEventType),
+            args: { eventIds: { type: (0, graphql_1.GraphQLNonNull)((0, graphql_1.GraphQLList)((0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString))) } },
+            async resolve(parent, { eventIds }) {
+                return await MapArtistToEvent_1.default.find({ eventId: { $in: eventIds } }).sort({ artistName: 1 }).exec();
             },
         },
         cardPricesByCards: {
@@ -152,6 +163,89 @@ const RootQuery = new graphql_1.GraphQLObjectType({
                     query.isReviewed = isReviewed;
                 return await ArtistPost_1.default.find(query).sort({ postDate: -1 }).limit(limit);
             }
+        },
+        newsReviews: {
+            type: (0, graphql_1.GraphQLList)(schema_1.NewsReviewType),
+            args: {
+                isReviewed: { type: graphql_1.GraphQLBoolean },
+                isPublished: { type: graphql_1.GraphQLBoolean },
+                limit: { type: graphql_1.GraphQLInt, defaultValue: 50 }
+            },
+            async resolve(parent, { isReviewed, isPublished, limit }, context) {
+                // Allow public access for published articles only
+                if (isPublished === true && isReviewed === undefined) {
+                    const query = { isPublished: true };
+                    return await NewsReview_1.default.find(query).sort({ publishedAt: -1 }).limit(limit);
+                }
+                // Require admin for other queries
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
+                const query = {};
+                if (isReviewed !== undefined)
+                    query.isReviewed = isReviewed;
+                if (isPublished !== undefined)
+                    query.isPublished = isPublished;
+                return await NewsReview_1.default.find(query).sort({ generatedAt: -1 }).limit(limit);
+            }
+        },
+        newsReview: {
+            type: schema_1.NewsReviewType,
+            args: {
+                id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) }
+            },
+            async resolve(parent, { id }, context) {
+                const article = await NewsReview_1.default.findById(id);
+                // Only return if published (public access) or user is admin
+                if (article && article.isPublished) {
+                    return article;
+                }
+                // Require admin for unpublished articles
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
+                return article;
+            }
+        },
+        newsReviewsByArtist: {
+            type: (0, graphql_1.GraphQLList)(schema_1.NewsReviewType),
+            args: {
+                artistName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                limit: { type: graphql_1.GraphQLInt, defaultValue: 50 }
+            },
+            async resolve(parent, { artistName, limit }, context) {
+                // Public access - only return published articles for the artist
+                const query = {
+                    artistName: { $regex: new RegExp(`^${artistName}$`, 'i') },
+                    isPublished: true
+                };
+                return await NewsReview_1.default.find(query).sort({ publishedAt: -1 }).limit(limit);
+            }
+        },
+        userCardCollection: {
+            type: (0, graphql_1.GraphQLList)(schema_1.UserCardCollectionItemType),
+            args: {
+                scryfallIds: { type: (0, graphql_1.GraphQLNonNull)((0, graphql_1.GraphQLList)((0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString))) },
+            },
+            async resolve(parent, { scryfallIds }, context) {
+                (0, auth_1.requireAuth)(context.isAuthenticated);
+                return await UserCardCollection_1.default.find({
+                    userId: context.userId,
+                    scryfallId: { $in: scryfallIds },
+                });
+            },
+        },
+        myCardCollection: {
+            type: (0, graphql_1.GraphQLList)(schema_1.UserCardCollectionItemType),
+            async resolve(parent, args, context) {
+                (0, auth_1.requireAuth)(context.isAuthenticated);
+                return await UserCardCollection_1.default.find({
+                    userId: context.userId,
+                    $or: [
+                        { signedNonfoil: true },
+                        { signedFoil: true },
+                        { wishlistSigned: true },
+                        { artistProof: true },
+                        { artistProofFoil: true },
+                    ],
+                });
+            },
         },
     },
 });
@@ -875,6 +969,246 @@ const mutations = new graphql_1.GraphQLObjectType({
                     };
                 }
             }
+        },
+        generateNewsArticle: {
+            type: schema_1.NewsReviewType,
+            args: {
+                artistPostId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) }
+            },
+            async resolve(parent, { artistPostId }, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
+                try {
+                    // Find the artist post
+                    const artistPost = await ArtistPost_1.default.findById(artistPostId);
+                    if (!artistPost) {
+                        throw new Error("Artist post not found");
+                    }
+                    // Check if news article already exists for this post
+                    const existingArticle = await NewsReview_1.default.findOne({ artistPostId });
+                    if (existingArticle) {
+                        throw new Error("News article already exists for this post");
+                    }
+                    // Generate the news article using AI
+                    const article = await (0, aiNewsService_1.generateNewsArticle)(artistPost.artistName, artistPost.content, artistPost.postUrl, artistPost.platform);
+                    // Create the news review entry
+                    const newsReview = new NewsReview_1.default({
+                        artistPostId: artistPost._id,
+                        artistId: artistPost.artistId,
+                        artistName: artistPost.artistName,
+                        title: article.title,
+                        content: article.content,
+                        summary: article.summary,
+                        sourcePostUrl: artistPost.postUrl,
+                    });
+                    await newsReview.save();
+                    return newsReview;
+                }
+                catch (err) {
+                    throw new Error(err.message || "Failed to generate news article");
+                }
+            }
+        },
+        generateManualNewsArticle: {
+            type: schema_1.NewsReviewType,
+            args: {
+                artistNames: { type: (0, graphql_1.GraphQLList)(graphql_1.GraphQLString) },
+                content: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                sourceUrl: { type: graphql_1.GraphQLString },
+                imageUrl: { type: graphql_1.GraphQLString }
+            },
+            async resolve(parent, { artistNames, content, sourceUrl, imageUrl }, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
+                try {
+                    const mongoose = require('mongoose');
+                    const artistIds = [];
+                    const validArtistNames = [];
+                    // Handle multiple artists (or no artists)
+                    if (artistNames && artistNames.length > 0) {
+                        for (const name of artistNames) {
+                            const artist = await Artist_1.default.findOne({ name });
+                            if (artist) {
+                                artistIds.push(artist._id);
+                                validArtistNames.push(name);
+                            }
+                        }
+                    }
+                    // Generate the news article using AI
+                    // Pass first artist name for context, or empty string if no artists
+                    const primaryArtistName = validArtistNames.length > 0 ? validArtistNames[0] : '';
+                    const article = await (0, aiNewsService_1.generateNewsArticle)(primaryArtistName, content, sourceUrl || '', 'manual');
+                    // Create a placeholder ObjectId for artistPostId since this is manual
+                    const placeholderPostId = new mongoose.Types.ObjectId();
+                    // Create the news review entry with multi-artist support
+                    const newsReview = new NewsReview_1.default({
+                        artistPostId: placeholderPostId,
+                        // Set legacy fields for backwards compatibility
+                        artistId: artistIds.length > 0 ? artistIds[0] : null,
+                        artistName: validArtistNames.length > 0 ? validArtistNames[0] : null,
+                        // Set new array fields
+                        artistIds: artistIds,
+                        artistNames: validArtistNames,
+                        title: article.title,
+                        content: article.content,
+                        summary: article.summary,
+                        sourcePostUrl: sourceUrl || '',
+                        imageUrl: imageUrl || '',
+                    });
+                    await newsReview.save();
+                    return newsReview;
+                }
+                catch (err) {
+                    throw new Error(err.message || "Failed to generate manual news article");
+                }
+            }
+        },
+        uploadNewsImage: {
+            type: schema_1.PresignedUrlType,
+            args: {
+                base64Data: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                filename: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                contentType: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) }
+            },
+            async resolve(parent, { base64Data, filename, contentType }, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
+                try {
+                    const result = await (0, s3UploadService_1.uploadImageFromBase64)(base64Data, filename, contentType);
+                    return {
+                        uploadUrl: '', // Not used in server-side upload
+                        imageUrl: result.imageUrl,
+                        key: result.key
+                    };
+                }
+                catch (err) {
+                    throw new Error(err.message || "Failed to upload image");
+                }
+            }
+        },
+        updateNewsReview: {
+            type: schema_1.MutationResponseType,
+            args: {
+                id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) },
+                title: { type: graphql_1.GraphQLString },
+                content: { type: graphql_1.GraphQLString },
+                summary: { type: graphql_1.GraphQLString },
+                isReviewed: { type: graphql_1.GraphQLBoolean },
+                isPublished: { type: graphql_1.GraphQLBoolean }
+            },
+            async resolve(parent, { id, title, content, summary, isReviewed, isPublished }, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
+                try {
+                    // Get the existing news review to check if it's being published for the first time
+                    const existingNewsReview = await NewsReview_1.default.findById(id);
+                    if (!existingNewsReview) {
+                        return { success: false, message: "News review not found" };
+                    }
+                    const updateData = {};
+                    if (title !== undefined)
+                        updateData.title = title;
+                    if (content !== undefined)
+                        updateData.content = content;
+                    if (summary !== undefined)
+                        updateData.summary = summary;
+                    if (isReviewed !== undefined)
+                        updateData.isReviewed = isReviewed;
+                    if (isPublished !== undefined) {
+                        updateData.isPublished = isPublished;
+                        // Only set publishedAt when publishing for the first time
+                        if (isPublished && !existingNewsReview.isPublished) {
+                            updateData.publishedAt = new Date();
+                        }
+                    }
+                    const newsReview = await NewsReview_1.default.findByIdAndUpdate(id, updateData, { new: true });
+                    if (!newsReview) {
+                        return { success: false, message: "News review not found" };
+                    }
+                    // If the article is being published for the first time, create an ArtistChange entry
+                    if (isPublished && !existingNewsReview.isPublished) {
+                        await ArtistChange_1.default.create({
+                            artistName: newsReview.artistName,
+                            changeType: 'news_article',
+                            newsArticleId: newsReview._id.toString(),
+                            newsArticleTitle: newsReview.title,
+                            newsArticleSummary: newsReview.summary,
+                            timestamp: new Date(),
+                            processed: false,
+                        });
+                        console.log(`Created ArtistChange entry for published article: ${newsReview.title}`);
+                    }
+                    return { success: true, message: "News review updated successfully" };
+                }
+                catch (err) {
+                    return {
+                        success: false,
+                        message: err.message || "Failed to update news review"
+                    };
+                }
+            }
+        },
+        deleteNewsReview: {
+            type: schema_1.MutationResponseType,
+            args: {
+                id: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLID) }
+            },
+            async resolve(parent, { id }, context) {
+                // Require admin privileges
+                (0, auth_1.requireAdmin)(context.isAuthenticated, context.userRole);
+                try {
+                    const newsReview = await NewsReview_1.default.findByIdAndDelete(id);
+                    if (!newsReview) {
+                        return { success: false, message: "News review not found" };
+                    }
+                    return { success: true, message: "News review deleted successfully" };
+                }
+                catch (err) {
+                    return {
+                        success: false,
+                        message: err.message || "Failed to delete news review"
+                    };
+                }
+            }
+        },
+        toggleCardCollectionField: {
+            type: schema_1.UserCardCollectionItemType,
+            args: {
+                scryfallId: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                cardName: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                artistName: { type: graphql_1.GraphQLString },
+                set: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                collectorNumber: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+                field: { type: (0, graphql_1.GraphQLNonNull)(graphql_1.GraphQLString) },
+            },
+            async resolve(parent, { scryfallId, cardName, artistName, set, collectorNumber, field }, context) {
+                (0, auth_1.requireAuth)(context.isAuthenticated);
+                const validFields = ['signedNonfoil', 'signedFoil', 'wishlistSigned', 'artistProof', 'artistProofFoil'];
+                if (!validFields.includes(field)) {
+                    throw new Error("Invalid collection field");
+                }
+                try {
+                    let item = await UserCardCollection_1.default.findOne({ userId: context.userId, scryfallId });
+                    if (!item) {
+                        item = new UserCardCollection_1.default({
+                            userId: context.userId,
+                            scryfallId,
+                            cardName,
+                            artistName: artistName || "",
+                            set,
+                            collectorNumber,
+                        });
+                    }
+                    else if (artistName && !item.get('artistName')) {
+                        item.set('artistName', artistName);
+                    }
+                    item[field] = !item[field];
+                    return await item.save();
+                }
+                catch (err) {
+                    throw new Error("Failed to update card collection");
+                }
+            },
         },
     },
 });

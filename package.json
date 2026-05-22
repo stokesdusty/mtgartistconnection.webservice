@@ -7,7 +7,8 @@
     "dev": "concurrently \"npx tsc --watch\" \"nodemon -q dist/app.js\"",
     "build": "tsc",
     "start": "node dist/app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "backfill": "tsc && node dist/scripts/backfillArtistNames.js"
   },
   "keywords": [],
   "author": "",

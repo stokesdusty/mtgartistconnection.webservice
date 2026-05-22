@@ -21,6 +21,9 @@ const socialMediaSync_1 = require("./jobs/socialMediaSync");
 // Dotenv config
 (0, dotenv_1.config)();
 const app = (0, express_1.default)();
+// Increase body size limit for base64 image uploads (10MB)
+app.use(express_1.default.json({ limit: '10mb' }));
+app.use(express_1.default.urlencoded({ limit: '10mb', extended: true }));
 // Configure CORS with whitelist of allowed origins
 const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
