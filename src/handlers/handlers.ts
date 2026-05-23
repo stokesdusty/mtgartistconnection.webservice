@@ -1,5 +1,5 @@
-import { GraphQLBoolean, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, ArtistPostType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningEventType, UserCardCollectionItemType, UserType } from "../schema/schema";
+import { GraphQLBoolean, GraphQLFloat, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
+import { ArtistType, ArtistPostType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningBatchType, SigningEventType, UserCardCollectionItemType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
@@ -13,6 +13,7 @@ import ArtistChange from "../models/ArtistChange";
 import EventChange from "../models/EventChange";
 import ArtistPost from "../models/ArtistPost";
 import NewsReview from "../models/NewsReview";
+import SigningBatch from "../models/SigningBatch";
 import { generateToken, requireAuth, requireAdmin } from "../middleware/auth";
 import { sendWelcomeEmail } from "../services/emailService";
 import { generateNewsArticle } from "../services/aiNewsService";
@@ -25,6 +26,27 @@ const CardLookupInput = new GraphQLInputObjectType({
     fields: {
         set_code: { type: GraphQLNonNull(GraphQLString) },
         number: { type: GraphQLNonNull(GraphQLString) },
+    },
+});
+
+const CardRowInput = new GraphQLInputObjectType({
+    name: "CardRowInput",
+    fields: {
+        rowId:             { type: GraphQLNonNull(GraphQLString) },
+        cardName:          { type: GraphQLString },
+        quantity:          { type: GraphQLInt },
+        set:               { type: GraphQLString },
+        foil:              { type: GraphQLString },
+        owner:             { type: GraphQLString },
+        signatureType:     { type: GraphQLString },
+        sigNotes:          { type: GraphQLString },
+        pricePerSig:       { type: GraphQLFloat },
+        paymentStatus:     { type: GraphQLString },
+        status:            { type: GraphQLString },
+        signingMethod:     { type: GraphQLString },
+        signingMethodLabel:{ type: GraphQLString },
+        outboundTracking:  { type: GraphQLString },
+        inboundTracking:   { type: GraphQLString },
     },
 });
 
@@ -138,6 +160,13 @@ const RootQuery = new GraphQLObjectType({
                 }
 
                 return await CardKingdomPrice.find(query).exec();
+            },
+        },
+        signingBatches: {
+            type: GraphQLList(SigningBatchType),
+            async resolve(parent, args, context) {
+                requireAuth(context.isAuthenticated);
+                return await SigningBatch.find({ userId: context.userId }).sort({ sortOrder: 1, createdAt: 1 });
             },
         },
         me: {
@@ -1268,6 +1297,68 @@ const mutations = new GraphQLObjectType({
                     };
                 }
             }
+        },
+        saveSigningBatch: {
+            type: SigningBatchType,
+            args: {
+                batchId:   { type: GraphQLNonNull(GraphQLString) },
+                name:      { type: GraphQLNonNull(GraphQLString) },
+                createdAt: { type: GraphQLNonNull(GraphQLString) },
+                archived:  { type: GraphQLBoolean },
+                expanded:  { type: GraphQLBoolean },
+                sortOrder: { type: GraphQLInt },
+                rows:      { type: GraphQLList(CardRowInput) },
+            },
+            async resolve(parent, { batchId, name, createdAt, archived, expanded, sortOrder, rows }, context) {
+                requireAuth(context.isAuthenticated);
+                const update: any = { name, createdAt };
+                if (archived !== undefined && archived !== null) update.archived = archived;
+                if (expanded !== undefined && expanded !== null) update.expanded = expanded;
+                if (sortOrder !== undefined && sortOrder !== null) update.sortOrder = sortOrder;
+                if (rows !== undefined && rows !== null) update.rows = rows;
+                return await SigningBatch.findOneAndUpdate(
+                    { userId: context.userId, batchId },
+                    { $set: update },
+                    { new: true, upsert: true }
+                );
+            },
+        },
+        deleteSigningBatch: {
+            type: MutationResponseType,
+            args: {
+                batchId: { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(parent, { batchId }, context) {
+                requireAuth(context.isAuthenticated);
+                try {
+                    await SigningBatch.deleteOne({ userId: context.userId, batchId });
+                    return { success: true };
+                } catch (err: any) {
+                    return { success: false, message: err.message || "Failed to delete signing batch" };
+                }
+            },
+        },
+        reorderSigningBatches: {
+            type: MutationResponseType,
+            args: {
+                orderedBatchIds: { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLString))) },
+            },
+            async resolve(parent, { orderedBatchIds }, context) {
+                requireAuth(context.isAuthenticated);
+                try {
+                    await Promise.all(
+                        orderedBatchIds.map((batchId: string, index: number) =>
+                            SigningBatch.updateOne(
+                                { userId: context.userId, batchId },
+                                { $set: { sortOrder: index } }
+                            )
+                        )
+                    );
+                    return { success: true };
+                } catch (err: any) {
+                    return { success: false, message: err.message || "Failed to reorder batches" };
+                }
+            },
         },
         toggleCardCollectionField: {
             type: UserCardCollectionItemType,

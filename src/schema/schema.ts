@@ -1,4 +1,4 @@
-import { GraphQLID, GraphQLObjectType, GraphQLString, GraphQLNonNull, GraphQLScalarType, GraphQLInt, GraphQLBoolean, GraphQLList } from "graphql";
+import { GraphQLID, GraphQLObjectType, GraphQLString, GraphQLNonNull, GraphQLScalarType, GraphQLInt, GraphQLFloat, GraphQLBoolean, GraphQLList } from "graphql";
 
 export const ArtistType = new GraphQLObjectType({
     name: "ArtistType",
@@ -175,6 +175,41 @@ export const UserCardCollectionItemType = new GraphQLObjectType({
         wishlistSigned:  { type: GraphQLBoolean },
         artistProof:     { type: GraphQLBoolean },
         artistProofFoil: { type: GraphQLBoolean },
+    }),
+});
+
+export const SigningCardRowType = new GraphQLObjectType({
+    name: "SigningCardRowType",
+    fields: () => ({
+        rowId:             { type: GraphQLNonNull(GraphQLString) },
+        cardName:          { type: GraphQLString },
+        quantity:          { type: GraphQLInt },
+        set:               { type: GraphQLString },
+        foil:              { type: GraphQLString },
+        owner:             { type: GraphQLString },
+        signatureType:     { type: GraphQLString },
+        sigNotes:          { type: GraphQLString },
+        pricePerSig:       { type: GraphQLFloat },
+        paymentStatus:     { type: GraphQLString },
+        status:            { type: GraphQLString },
+        signingMethod:     { type: GraphQLString },
+        signingMethodLabel:{ type: GraphQLString },
+        outboundTracking:  { type: GraphQLString },
+        inboundTracking:   { type: GraphQLString },
+    }),
+});
+
+export const SigningBatchType = new GraphQLObjectType({
+    name: "SigningBatchType",
+    fields: () => ({
+        id:        { type: GraphQLNonNull(GraphQLID) },
+        batchId:   { type: GraphQLNonNull(GraphQLString) },
+        name:      { type: GraphQLNonNull(GraphQLString) },
+        createdAt: { type: GraphQLNonNull(GraphQLString) },
+        archived:  { type: GraphQLBoolean },
+        expanded:  { type: GraphQLBoolean },
+        sortOrder: { type: GraphQLInt },
+        rows:      { type: GraphQLList(SigningCardRowType) },
     }),
 });
 
