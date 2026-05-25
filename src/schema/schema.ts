@@ -72,6 +72,24 @@ export const SigningEventType = new GraphQLObjectType({
     }),
 });
 
+export const ArtistFlagsType = new GraphQLObjectType({
+    name: "ArtistFlagsType",
+    fields: () => ({
+        name:            { type: GraphQLNonNull(GraphQLString) },
+        flags:           { type: GraphQLNonNull(GraphQLInt) },
+        location:        { type: GraphQLString },
+        alternate_names: { type: GraphQLString },
+    }),
+});
+
+export const ArtistPageType = new GraphQLObjectType({
+    name: "ArtistPageType",
+    fields: () => ({
+        artists: { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(ArtistType))) },
+        total:   { type: GraphQLNonNull(GraphQLInt) },
+    }),
+});
+
 export const MapArtistToEventType = new GraphQLObjectType({
     name: "MapArtistToEventType",
     fields: () => ({

@@ -1,5 +1,5 @@
 import { GraphQLBoolean, GraphQLFloat, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, ArtistPostType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningBatchType, SigningEventType, UserCardCollectionItemType, UserType } from "../schema/schema";
+import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningBatchType, SigningEventType, UserCardCollectionItemType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
@@ -60,11 +60,54 @@ const RootQuery = new GraphQLObjectType({
                 return await Artist.find().sort({ name: 1 }).collation({ locale: "en", caseLevel: true });
             },
         },
+        // Paginated list — display fields only (name, filename). Use alongside artistFilterFlags.
+        artistsPage: {
+            type: GraphQLNonNull(ArtistPageType),
+            args: {
+                offset: { type: GraphQLInt },
+                limit:  { type: GraphQLInt },
+            },
+            async resolve(_parent, { offset = 0, limit = 60 }) {
+                const safeLimit = Math.min(Math.max(1, limit), 120);
+                const [artists, total] = await Promise.all([
+                    Artist.find()
+                        .select('name filename')
+                        .sort({ name: 1 })
+                        .collation({ locale: 'en', caseLevel: true })
+                        .skip(offset)
+                        .limit(safeLimit)
+                        .lean(),
+                    Artist.countDocuments(),
+                ]);
+                return { artists, total };
+            },
+        },
+        // Lightweight filter index — one packed bitfield per artist instead of four string fields.
+        // Bit 0: markssignatureservice === "true"
+        // Bit 1: mountainmage truthy (non-empty, not "false")
+        // Bit 2: artistProofs === "yes" | "true"
+        artistFilterFlags: {
+            type: GraphQLNonNull(GraphQLList(GraphQLNonNull(ArtistFlagsType))),
+            async resolve() {
+                const artists = await Artist.find()
+                    .select('name location alternate_names markssignatureservice mountainmage artistProofs')
+                    .sort({ name: 1 })
+                    .collation({ locale: 'en', caseLevel: true })
+                    .lean();
+                return artists.map((a: any) => {
+                    let flags = 0;
+                    if (a.markssignatureservice === 'true') flags |= 1;
+                    if (a.mountainmage && a.mountainmage !== '' && a.mountainmage !== 'false') flags |= 2;
+                    if (a.artistProofs === 'yes' || a.artistProofs === 'true') flags |= 4;
+                    return { name: a.name, flags, location: a.location ?? null, alternate_names: a.alternate_names ?? null };
+                });
+            },
+        },
         artistByName: {
             type: ArtistType,
             args: { name: { type: GraphQLNonNull(GraphQLString)}},
             async resolve(parent, { name }) {
-                return await Artist.findOne({ name: name }).exec();
+                return await Artist.findOne({ name: name }).collation({ locale: 'en', strength: 1 }).exec();
             },
         },
         artistById: {
