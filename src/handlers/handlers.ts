@@ -14,6 +14,8 @@ import EventChange from "../models/EventChange";
 import ArtistPost from "../models/ArtistPost";
 import NewsReview from "../models/NewsReview";
 import SigningBatch from "../models/SigningBatch";
+import LinkClick from "../models/LinkClick";
+import PriceClick from "../models/PriceClick";
 import { generateToken, requireAuth, requireAdmin } from "../middleware/auth";
 import { sendWelcomeEmail } from "../services/emailService";
 import { generateNewsArticle } from "../services/aiNewsService";
@@ -1400,6 +1402,46 @@ const mutations = new GraphQLObjectType({
                     return { success: true };
                 } catch (err: any) {
                     return { success: false, message: err.message || "Failed to reorder batches" };
+                }
+            },
+        },
+        logPriceClick: {
+            type: MutationResponseType,
+            args: {
+                artistName: { type: GraphQLNonNull(GraphQLString) },
+                platform:   { type: GraphQLNonNull(GraphQLString) },
+                cardName:   { type: GraphQLString },
+                cardSet:    { type: GraphQLString },
+            },
+            async resolve(_parent, { artistName, platform, cardName, cardSet }) {
+                const validPlatforms = ['manapool', 'tcgplayer', 'cardkingdom'];
+                if (!validPlatforms.includes(platform)) {
+                    return { success: false, message: "Invalid platform" };
+                }
+                try {
+                    await PriceClick.create({ artistName, platform, cardName, cardSet });
+                    return { success: true };
+                } catch (err: any) {
+                    return { success: false, message: err.message || "Failed to log click" };
+                }
+            },
+        },
+        logLinkClick: {
+            type: MutationResponseType,
+            args: {
+                artistName: { type: GraphQLNonNull(GraphQLString) },
+                linkType:   { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(_parent, { artistName, linkType }) {
+                const validLinkTypes = ['website', 'facebook', 'instagram', 'twitter', 'patreon', 'youtube', 'artstation', 'bluesky', 'oma', 'inprnt', 'ebay', 'markssignatureservice', 'mountainmage'];
+                if (!validLinkTypes.includes(linkType)) {
+                    return { success: false, message: "Invalid link type" };
+                }
+                try {
+                    await LinkClick.create({ artistName, linkType });
+                    return { success: true };
+                } catch (err: any) {
+                    return { success: false, message: err.message || "Failed to log click" };
                 }
             },
         },
