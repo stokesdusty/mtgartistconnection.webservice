@@ -39,8 +39,20 @@ export const generateToken = (userId: string, role: string): string => {
   return jwt.sign(
     { userId, role },
     process.env.JWT_SECRET!,
-    { expiresIn: '7d' } // Token expires in 7 days
+    { expiresIn: '7d' }
   );
+};
+
+export const generateRefreshToken = (userId: string, role: string): string => {
+  return jwt.sign(
+    { userId, role },
+    process.env.REFRESH_TOKEN_SECRET!,
+    { expiresIn: '30d' }
+  );
+};
+
+export const verifyRefreshToken = (token: string): { userId: string; role: string } => {
+  return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET!) as { userId: string; role: string };
 };
 
 export const requireAuth = (isAuthenticated?: boolean) => {

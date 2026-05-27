@@ -1,5 +1,5 @@
 import { GraphQLBoolean, GraphQLFloat, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningBatchType, SigningEventType, UserCardCollectionItemType, UserType } from "../schema/schema";
+import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, RefreshTokenResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningBatchType, SigningEventType, UserCardCollectionItemType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
@@ -16,7 +16,7 @@ import NewsReview from "../models/NewsReview";
 import SigningBatch from "../models/SigningBatch";
 import LinkClick from "../models/LinkClick";
 import PriceClick from "../models/PriceClick";
-import { generateToken, requireAuth, requireAdmin } from "../middleware/auth";
+import { generateToken, generateRefreshToken, verifyRefreshToken, requireAuth, requireAdmin } from "../middleware/auth";
 import { sendWelcomeEmail } from "../services/emailService";
 import { generateNewsArticle } from "../services/aiNewsService";
 import { uploadImageFromBase64 } from "../services/s3UploadService";
@@ -351,6 +351,8 @@ const mutations = new GraphQLObjectType({
                     // Generate JWT token with user role
                     // @ts-ignore
                     const token = generateToken(savedUser._id.toString(), savedUser.role);
+                    // @ts-ignore
+                    const refreshToken = generateRefreshToken(savedUser._id.toString(), savedUser.role);
 
                     // Send welcome email (async, don't wait for it)
                     sendWelcomeEmail(email).catch(err => {
@@ -359,6 +361,7 @@ const mutations = new GraphQLObjectType({
 
                     return {
                         token,
+                        refreshToken,
                         user: savedUser
                     };
                 } catch (err) {
@@ -385,13 +388,31 @@ const mutations = new GraphQLObjectType({
                     // Generate JWT token with user role
                     // @ts-ignore
                     const token = generateToken(existingUser._id.toString(), existingUser.role);
+                    // @ts-ignore
+                    const refreshToken = generateRefreshToken(existingUser._id.toString(), existingUser.role);
 
                     return {
                         token,
+                        refreshToken,
                         user: existingUser
                     };
                 } catch (err) {
                     throw new Error(err);
+                }
+            },
+        },
+        refreshToken: {
+            type: RefreshTokenResponseType,
+            args: {
+                refreshToken: { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(parent, { refreshToken }) {
+                try {
+                    const decoded = verifyRefreshToken(refreshToken);
+                    const token = generateToken(decoded.userId, decoded.role);
+                    return { token };
+                } catch (err) {
+                    throw new Error("Invalid or expired refresh token. Please log in again.");
                 }
             },
         },

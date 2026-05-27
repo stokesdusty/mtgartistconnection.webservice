@@ -55,7 +55,15 @@ export const AuthResponseType = new GraphQLObjectType({
     name: "AuthResponseType",
     fields: () => ({
         token: { type: GraphQLNonNull(GraphQLString) },
+        refreshToken: { type: GraphQLNonNull(GraphQLString) },
         user: { type: GraphQLNonNull(UserType) },
+    }),
+});
+
+export const RefreshTokenResponseType = new GraphQLObjectType({
+    name: "RefreshTokenResponseType",
+    fields: () => ({
+        token: { type: GraphQLNonNull(GraphQLString) },
     }),
 });
 
