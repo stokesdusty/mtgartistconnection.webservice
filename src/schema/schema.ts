@@ -24,7 +24,8 @@ export const ArtistType = new GraphQLObjectType({
         bluesky: { type: GraphQLString },
         omalink: { type: GraphQLString },
         inprnt: { type: GraphQLString },
-        alternate_names: { type: GraphQLString }
+        alternate_names: { type: GraphQLString },
+        scryfall_name: { type: GraphQLString }
     }),
 });
 
