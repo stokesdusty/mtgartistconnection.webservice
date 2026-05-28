@@ -605,6 +605,7 @@ const mutations = new GraphQLObjectType({
                 omalink: { type: GraphQLString },
                 inprnt: { type: GraphQLString },
                 alternate_names: { type: GraphQLString },
+                scryfall_name: { type: GraphQLString },
             },
             async resolve(parent, args, context) {
                 // Require admin privileges
