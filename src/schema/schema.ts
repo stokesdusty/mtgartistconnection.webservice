@@ -233,6 +233,7 @@ export const SigningBatchType = new GraphQLObjectType({
         batchId:   { type: GraphQLNonNull(GraphQLString) },
         name:      { type: GraphQLNonNull(GraphQLString) },
         createdAt: { type: GraphQLNonNull(GraphQLString) },
+        artist:    { type: GraphQLString },
         archived:  { type: GraphQLBoolean },
         expanded:  { type: GraphQLBoolean },
         sortOrder: { type: GraphQLInt },

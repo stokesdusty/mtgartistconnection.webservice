@@ -23,6 +23,7 @@ const signingBatchSchema = new Schema({
     batchId:   { type: String, required: true },
     name:      { type: String, required: true },
     createdAt: { type: String, required: true },
+    artist:    { type: String, default: '' },
     archived:  { type: Boolean, default: false },
     expanded:  { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },

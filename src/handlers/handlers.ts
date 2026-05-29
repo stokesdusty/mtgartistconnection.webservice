@@ -1371,14 +1371,16 @@ const mutations = new GraphQLObjectType({
                 batchId:   { type: GraphQLNonNull(GraphQLString) },
                 name:      { type: GraphQLNonNull(GraphQLString) },
                 createdAt: { type: GraphQLNonNull(GraphQLString) },
+                artist:    { type: GraphQLString },
                 archived:  { type: GraphQLBoolean },
                 expanded:  { type: GraphQLBoolean },
                 sortOrder: { type: GraphQLInt },
                 rows:      { type: GraphQLList(CardRowInput) },
             },
-            async resolve(parent, { batchId, name, createdAt, archived, expanded, sortOrder, rows }, context) {
+            async resolve(parent, { batchId, name, createdAt, artist, archived, expanded, sortOrder, rows }, context) {
                 requireAuth(context.isAuthenticated);
                 const update: any = { name, createdAt };
+                if (artist !== undefined && artist !== null) update.artist = artist;
                 if (archived !== undefined && archived !== null) update.archived = archived;
                 if (expanded !== undefined && expanded !== null) update.expanded = expanded;
                 if (sortOrder !== undefined && sortOrder !== null) update.sortOrder = sortOrder;
