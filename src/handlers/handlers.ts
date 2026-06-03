@@ -1,5 +1,5 @@
 import { GraphQLBoolean, GraphQLFloat, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, RefreshTokenResponseType, CardPriceType, CardKingdomPriceType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningBatchType, SigningEventType, UserCardCollectionItemType, UserType } from "../schema/schema";
+import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, RefreshTokenResponseType, CardPriceType, CardKingdomPriceType, ClickStatType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningBatchType, SigningEventType, TimeseriesPointType, TopArtistClickType, UserCardCollectionItemType, UserType } from "../schema/schema";
 import Artist from "../models/Artist";
 import { Document, startSession } from "mongoose";
 import User from "../models/User";
@@ -52,6 +52,15 @@ const CardRowInput = new GraphQLInputObjectType({
         inboundTracking:   { type: GraphQLString },
     },
 });
+
+function rangeToDate(range?: string | null): Date | null {
+    if (!range || range === 'all') return null;
+    const days = range === '7d' ? 7 : range === '30d' ? 30 : range === '90d' ? 90 : null;
+    if (days === null) return null;
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return d;
+}
 
 const RootQuery = new GraphQLObjectType({
     name: "RootQuery",
@@ -323,6 +332,166 @@ const RootQuery = new GraphQLObjectType({
                         { artistProofFoil: true },
                     ],
                 });
+            },
+        },
+        clickStats: {
+            type: GraphQLNonNull(GraphQLList(GraphQLNonNull(ClickStatType))),
+            args: {
+                range:   { type: GraphQLString },
+                groupBy: { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(_parent, { range, groupBy }, context) {
+                requireAdmin(context.isAuthenticated, context.userRole);
+                const since = rangeToDate(range);
+                const matchStage = since ? { timestamp: { $gte: since } } : {};
+
+                if (groupBy === 'vendor') {
+                    const rows = await PriceClick.aggregate([
+                        { $match: matchStage },
+                        { $group: { _id: '$platform', count: { $sum: 1 } } },
+                        { $sort: { count: -1 } },
+                    ]);
+                    return rows.map((r: any) => ({ key: r._id, count: r.count }));
+                }
+
+                if (groupBy === 'platform') {
+                    const rows = await LinkClick.aggregate([
+                        { $match: matchStage },
+                        { $group: { _id: '$linkType', count: { $sum: 1 } } },
+                        { $sort: { count: -1 } },
+                    ]);
+                    return rows.map((r: any) => ({ key: r._id, count: r.count }));
+                }
+
+                if (groupBy === 'artist') {
+                    const [price, link] = await Promise.all([
+                        PriceClick.aggregate([
+                            { $match: matchStage },
+                            { $group: { _id: '$artistName', count: { $sum: 1 } } },
+                        ]),
+                        LinkClick.aggregate([
+                            { $match: matchStage },
+                            { $group: { _id: '$artistName', count: { $sum: 1 } } },
+                        ]),
+                    ]);
+                    const combined: Record<string, number> = {};
+                    [...price, ...link].forEach((r: any) => {
+                        combined[r._id] = (combined[r._id] || 0) + r.count;
+                    });
+                    return Object.entries(combined)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([key, count]) => ({ key, count }));
+                }
+
+                if (groupBy === 'day') {
+                    const groupId = {
+                        year:  { $year: '$timestamp' },
+                        month: { $month: '$timestamp' },
+                        day:   { $dayOfMonth: '$timestamp' },
+                    };
+                    const [price, link] = await Promise.all([
+                        PriceClick.aggregate([
+                            { $match: matchStage },
+                            { $group: { _id: groupId, count: { $sum: 1 } } },
+                        ]),
+                        LinkClick.aggregate([
+                            { $match: matchStage },
+                            { $group: { _id: groupId, count: { $sum: 1 } } },
+                        ]),
+                    ]);
+                    const combined: Record<string, number> = {};
+                    [...price, ...link].forEach((r: any) => {
+                        const key = `${r._id.year}-${String(r._id.month).padStart(2, '0')}-${String(r._id.day).padStart(2, '0')}`;
+                        combined[key] = (combined[key] || 0) + r.count;
+                    });
+                    return Object.entries(combined)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([key, count]) => ({ key, count }));
+                }
+
+                return [];
+            },
+        },
+        topArtistsByClicks: {
+            type: GraphQLNonNull(GraphQLList(GraphQLNonNull(TopArtistClickType))),
+            args: {
+                range: { type: GraphQLString },
+                limit: { type: GraphQLInt },
+            },
+            async resolve(_parent, { range, limit }, context) {
+                requireAdmin(context.isAuthenticated, context.userRole);
+                const since = rangeToDate(range);
+                const matchStage = since ? { timestamp: { $gte: since } } : {};
+                const safeLimit = Math.min(Math.max(1, limit ?? 10), 50);
+
+                const [price, link] = await Promise.all([
+                    PriceClick.aggregate([
+                        { $match: matchStage },
+                        { $group: { _id: '$artistName', count: { $sum: 1 } } },
+                    ]),
+                    LinkClick.aggregate([
+                        { $match: matchStage },
+                        { $group: { _id: '$artistName', count: { $sum: 1 } } },
+                    ]),
+                ]);
+
+                const combined: Record<string, number> = {};
+                [...price, ...link].forEach((r: any) => {
+                    combined[r._id] = (combined[r._id] || 0) + r.count;
+                });
+
+                const sorted = Object.entries(combined)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, safeLimit);
+
+                const artistNames = sorted.map(([name]) => name);
+                const artists = await Artist.find({ name: { $in: artistNames } }).select('name _id').lean();
+                const idMap: Record<string, string> = {};
+                (artists as any[]).forEach((a) => { idMap[a.name] = a._id.toString(); });
+
+                return sorted.map(([artistName, count]) => ({
+                    artistName,
+                    artistId: idMap[artistName] ?? null,
+                    count,
+                }));
+            },
+        },
+        clickTimeseries: {
+            type: GraphQLNonNull(GraphQLList(GraphQLNonNull(TimeseriesPointType))),
+            args: {
+                range: { type: GraphQLString },
+            },
+            async resolve(_parent, { range }, context) {
+                requireAdmin(context.isAuthenticated, context.userRole);
+                const since = rangeToDate(range);
+                const matchStage = since ? { timestamp: { $gte: since } } : {};
+
+                const groupId = {
+                    year:  { $year: '$timestamp' },
+                    month: { $month: '$timestamp' },
+                    day:   { $dayOfMonth: '$timestamp' },
+                };
+
+                const [price, link] = await Promise.all([
+                    PriceClick.aggregate([
+                        { $match: matchStage },
+                        { $group: { _id: groupId, count: { $sum: 1 } } },
+                    ]),
+                    LinkClick.aggregate([
+                        { $match: matchStage },
+                        { $group: { _id: groupId, count: { $sum: 1 } } },
+                    ]),
+                ]);
+
+                const combined: Record<string, number> = {};
+                [...price, ...link].forEach((r: any) => {
+                    const date = `${r._id.year}-${String(r._id.month).padStart(2, '0')}-${String(r._id.day).padStart(2, '0')}`;
+                    combined[date] = (combined[date] || 0) + r.count;
+                });
+
+                return Object.entries(combined)
+                    .sort((a, b) => a[0].localeCompare(b[0]))
+                    .map(([date, count]) => ({ date, count }));
             },
         },
     },

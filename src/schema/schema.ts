@@ -250,6 +250,31 @@ export const PresignedUrlType = new GraphQLObjectType({
     }),
 });
 
+export const ClickStatType = new GraphQLObjectType({
+    name: "ClickStatType",
+    fields: () => ({
+        key:   { type: GraphQLNonNull(GraphQLString) },
+        count: { type: GraphQLNonNull(GraphQLInt) },
+    }),
+});
+
+export const TopArtistClickType = new GraphQLObjectType({
+    name: "TopArtistClickType",
+    fields: () => ({
+        artistName: { type: GraphQLNonNull(GraphQLString) },
+        artistId:   { type: GraphQLID },
+        count:      { type: GraphQLNonNull(GraphQLInt) },
+    }),
+});
+
+export const TimeseriesPointType = new GraphQLObjectType({
+    name: "TimeseriesPointType",
+    fields: () => ({
+        date:  { type: GraphQLNonNull(GraphQLString) },
+        count: { type: GraphQLNonNull(GraphQLInt) },
+    }),
+});
+
 export const NewsReviewType = new GraphQLObjectType({
     name: "NewsReviewType",
     fields: () => ({
