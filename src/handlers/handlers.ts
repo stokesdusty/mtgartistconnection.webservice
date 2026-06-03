@@ -72,6 +72,17 @@ const RootQuery = new GraphQLObjectType({
                 return await Artist.find().sort({ name: 1 }).collation({ locale: "en", caseLevel: true });
             },
         },
+        // Lightweight list for autocomplete/dropdown — name and filename only
+        artistNames: {
+            type: GraphQLNonNull(GraphQLList(GraphQLNonNull(ArtistType))),
+            async resolve() {
+                return await Artist.find()
+                    .select('name filename')
+                    .sort({ name: 1 })
+                    .collation({ locale: 'en', caseLevel: true })
+                    .lean();
+            },
+        },
         // Paginated list — display fields only (name, filename). Use alongside artistFilterFlags.
         artistsPage: {
             type: GraphQLNonNull(ArtistPageType),
