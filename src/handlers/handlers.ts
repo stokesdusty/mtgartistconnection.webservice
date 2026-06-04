@@ -20,6 +20,7 @@ import { generateToken, generateRefreshToken, verifyRefreshToken, requireAuth, r
 import { sendWelcomeEmail } from "../services/emailService";
 import { generateNewsArticle } from "../services/aiNewsService";
 import { uploadImageFromBase64 } from "../services/s3UploadService";
+import { cacheGet, cacheSet, invalidateArtistCache } from "../utils/artistCache";
 
 type DocumentType = Document<any, any, any>;
 
@@ -76,11 +77,15 @@ const RootQuery = new GraphQLObjectType({
         artistNames: {
             type: GraphQLNonNull(GraphQLList(GraphQLNonNull(ArtistType))),
             async resolve() {
-                return await Artist.find()
+                const cached = cacheGet<any[]>('artistNames');
+                if (cached) return cached;
+                const result = await Artist.find()
                     .select('name filename')
                     .sort({ name: 1 })
                     .collation({ locale: 'en', caseLevel: true })
                     .lean();
+                cacheSet('artistNames', result);
+                return result;
             },
         },
         // Paginated list — display fields only (name, filename). Use alongside artistFilterFlags.
@@ -112,18 +117,22 @@ const RootQuery = new GraphQLObjectType({
         artistFilterFlags: {
             type: GraphQLNonNull(GraphQLList(GraphQLNonNull(ArtistFlagsType))),
             async resolve() {
+                const cached = cacheGet<any[]>('artistFilterFlags');
+                if (cached) return cached;
                 const artists = await Artist.find()
                     .select('name location alternate_names markssignatureservice mountainmage artistProofs')
                     .sort({ name: 1 })
                     .collation({ locale: 'en', caseLevel: true })
                     .lean();
-                return artists.map((a: any) => {
+                const result = artists.map((a: any) => {
                     let flags = 0;
                     if (a.markssignatureservice === 'true') flags |= 1;
                     if (a.mountainmage && a.mountainmage !== '' && a.mountainmage !== 'false') flags |= 2;
                     if (a.artistProofs === 'yes' || a.artistProofs === 'true') flags |= 4;
                     return { name: a.name, flags, location: a.location ?? null, alternate_names: a.alternate_names ?? null };
                 });
+                cacheSet('artistFilterFlags', result);
+                return result;
             },
         },
         artistByName: {
@@ -682,6 +691,7 @@ const mutations = new GraphQLObjectType({
                             alternate_names
                         });
                     const savedArtist = await artist.save();
+                    invalidateArtistCache();
 
                     // Create ArtistChange record for new artist notification
                     await ArtistChange.create({
@@ -714,7 +724,9 @@ const mutations = new GraphQLObjectType({
                     artist = await Artist.findById(id);
                     if (!artist) throw new Error("Artist not found");
                     // @ts-ignore
-                    return await Artist.findByIdAndDelete(artist.id);
+                    const deleted = await Artist.findByIdAndDelete(artist.id);
+                    invalidateArtistCache();
+                    return deleted;
                 } catch (err) {
                     throw new Error(err);
                 } finally {
@@ -728,7 +740,9 @@ const mutations = new GraphQLObjectType({
                 // Require admin privileges
                 requireAdmin(context.isAuthenticated, context.userRole);
 
-                return await Artist.deleteMany({});
+                const result = await Artist.deleteMany({});
+                invalidateArtistCache();
+                return result;
             }
         },
         updateArtist: {
@@ -750,10 +764,12 @@ const mutations = new GraphQLObjectType({
                     session.startTransaction({session});
                     artist = await Artist.findById(id);
                     if (!artist) throw new Error("Artist not found");
-                    return await Artist.findByIdAndUpdate(
+                    const updated = await Artist.findByIdAndUpdate(
                             { _id: artist.id },
                             updateValue
                         );
+                    invalidateArtistCache();
+                    return updated;
                 } catch (err) {
                     throw new Error(err);
                 } finally {
@@ -821,6 +837,7 @@ const mutations = new GraphQLObjectType({
 
                     // Create ArtistChange record if fields actually changed
                     if (fieldsChanged.length > 0) {
+                        invalidateArtistCache();
                         await ArtistChange.create({
                             artistName: updatedArtist.name,
                             changeType: 'update',
