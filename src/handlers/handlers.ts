@@ -1,8 +1,8 @@
 import { GraphQLBoolean, GraphQLFloat, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
 import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, RefreshTokenResponseType, CardPriceType, CardKingdomPriceType, ClickStatType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningBatchType, SigningEventType, TimeseriesPointType, TopArtistClickType, UserCardCollectionItemType, UserType } from "../schema/schema";
-import Artist from "../models/Artist";
-import { Document, startSession } from "mongoose";
-import User from "../models/User";
+import Artist, { IArtist } from "../models/Artist";
+import { Document, HydratedDocument, startSession } from "mongoose";
+import User, { IUser } from "../models/User";
 import UserCardCollection from "../models/UserCardCollection";
 import SigningEvent from "../models/SigningEvent";
 import { hashSync, compareSync } from "bcrypt-nodejs";
@@ -529,7 +529,7 @@ const mutations = new GraphQLObjectType({
                 password: { type: GraphQLNonNull(GraphQLString) },
             },
             async resolve(parent, {name, email, password}) {
-                let existingUser:DocumentType;
+                let existingUser: HydratedDocument<IUser> | null;
                 try {
                     existingUser = await User.findOne({ email });
                     if(existingUser) throw new Error("User already exists");
@@ -539,9 +539,7 @@ const mutations = new GraphQLObjectType({
                     const savedUser = await user.save();
 
                     // Generate JWT token with user role
-                    // @ts-ignore
                     const token = generateToken(savedUser._id.toString(), savedUser.role);
-                    // @ts-ignore
                     const refreshToken = generateRefreshToken(savedUser._id.toString(), savedUser.role);
 
                     // Send welcome email (async, don't wait for it)
@@ -567,18 +565,15 @@ const mutations = new GraphQLObjectType({
                 password: { type: GraphQLNonNull(GraphQLString) },
             },
             async resolve(parent, {email, password}) {
-                let existingUser:DocumentType;
+                let existingUser: HydratedDocument<IUser> | null;
                 try {
                     existingUser = await User.findOne({email});
                     if (!existingUser) throw new Error("No User registered with this email");
-                    // @ts-ignore
-                    const decryptedPassword = compareSync(password, existingUser?.password);
+                    const decryptedPassword = compareSync(password, existingUser.password);
                     if(!decryptedPassword) throw new Error("Incorrect Password");
 
                     // Generate JWT token with user role
-                    // @ts-ignore
                     const token = generateToken(existingUser._id.toString(), existingUser.role);
-                    // @ts-ignore
                     const refreshToken = generateRefreshToken(existingUser._id.toString(), existingUser.role);
 
                     return {
@@ -718,12 +713,11 @@ const mutations = new GraphQLObjectType({
                 requireAdmin(context.isAuthenticated, context.userRole);
 
                 const session = await startSession();
-                let artist:DocumentType;
+                let artist: HydratedDocument<IArtist> | null;
                 try {
                     session.startTransaction({ session });
                     artist = await Artist.findById(id);
                     if (!artist) throw new Error("Artist not found");
-                    // @ts-ignore
                     const deleted = await Artist.findByIdAndDelete(artist.id);
                     invalidateArtistCache();
                     return deleted;
@@ -976,7 +970,6 @@ const mutations = new GraphQLObjectType({
                     }
 
                     // Verify current password
-                    // @ts-ignore
                     const isPasswordValid = compareSync(currentPassword, user.password);
                     if (!isPasswordValid) {
                         return {
@@ -987,7 +980,6 @@ const mutations = new GraphQLObjectType({
 
                     // Hash and update new password
                     const encryptedPassword = hashSync(newPassword);
-                    // @ts-ignore
                     user.password = encryptedPassword;
                     await user.save();
 
@@ -1026,17 +1018,12 @@ const mutations = new GraphQLObjectType({
                     }
 
                     // Update email preferences using set to ensure proper nested object update
-                    // @ts-ignore
                     user.set('emailPreferences.siteUpdates', siteUpdates);
-                    // @ts-ignore
                     user.set('emailPreferences.artistUpdates', artistUpdates);
-                    // @ts-ignore
                     user.set('emailPreferences.localSigningEvents', localSigningEvents);
-                    // @ts-ignore
                     user.set('emailPreferences.newArtistNotifications', newArtistNotifications);
 
                     // Mark the nested field as modified
-                    // @ts-ignore
                     user.markModified('emailPreferences');
 
                     await user.save();
@@ -1082,14 +1069,11 @@ const mutations = new GraphQLObjectType({
                         };
                     }
 
-                    // @ts-ignore
                     if (!user.followedArtists) {
-                        // @ts-ignore
                         user.followedArtists = [];
                     }
 
                     // Check if already following
-                    // @ts-ignore
                     if (user.followedArtists.includes(artistName)) {
                         return {
                             success: false,
@@ -1098,7 +1082,6 @@ const mutations = new GraphQLObjectType({
                     }
 
                     // Add artist to followed list
-                    // @ts-ignore
                     user.followedArtists.push(artistName);
                     await user.save();
 
@@ -1134,7 +1117,6 @@ const mutations = new GraphQLObjectType({
                         };
                     }
 
-                    // @ts-ignore
                     if (!user.followedArtists || !user.followedArtists.includes(artistName)) {
                         return {
                             success: false,
@@ -1143,7 +1125,6 @@ const mutations = new GraphQLObjectType({
                     }
 
                     // Remove artist from followed list
-                    // @ts-ignore
                     user.followedArtists = user.followedArtists.filter(
                         (name: string) => name !== artistName
                     );
@@ -1181,14 +1162,11 @@ const mutations = new GraphQLObjectType({
                         };
                     }
 
-                    // @ts-ignore
                     if (!user.monitoredStates) {
-                        // @ts-ignore
                         user.monitoredStates = [];
                     }
 
                     // Check if already monitoring
-                    // @ts-ignore
                     if (user.monitoredStates.includes(state)) {
                         return {
                             success: false,
@@ -1197,13 +1175,10 @@ const mutations = new GraphQLObjectType({
                     }
 
                     // Add state to monitored list
-                    // @ts-ignore
                     user.monitoredStates.push(state);
 
                     // Automatically enable localSigningEvents email preference
-                    // @ts-ignore
                     user.set('emailPreferences.localSigningEvents', true);
-                    // @ts-ignore
                     user.markModified('emailPreferences');
 
                     await user.save();
@@ -1240,7 +1215,6 @@ const mutations = new GraphQLObjectType({
                         };
                     }
 
-                    // @ts-ignore
                     if (!user.monitoredStates || !user.monitoredStates.includes(state)) {
                         return {
                             success: false,
@@ -1249,7 +1223,6 @@ const mutations = new GraphQLObjectType({
                     }
 
                     // Remove state from monitored list
-                    // @ts-ignore
                     user.monitoredStates = user.monitoredStates.filter(
                         (s: string) => s !== state
                     );

@@ -1,6 +1,32 @@
 import { Schema, model } from "mongoose";
 
-const artistSchema:Schema = new Schema({
+export interface IArtist {
+    name: string;
+    email?: string;
+    artistProofs?: string;
+    facebook?: string;
+    haveSignature?: string;
+    instagram?: string;
+    patreon?: string;
+    signing?: string;
+    signingComment?: string;
+    twitter?: string;
+    url?: string;
+    youtube?: string;
+    mountainmage?: string;
+    markssignatureservice?: string;
+    filename?: string;
+    artstation?: string;
+    location?: string;
+    bluesky?: string;
+    omalink?: string;
+    inprnt?: string;
+    scryfall_name?: string;
+    alternate_names?: string;
+    lastSocialSync?: Date;
+}
+
+const artistSchema = new Schema<IArtist>({
     name: {
         type: String,
         required: true,
@@ -74,4 +100,4 @@ const artistSchema:Schema = new Schema({
     }
 });
 
-export default model("Artist", artistSchema);
+export default model<IArtist>("Artist", artistSchema);

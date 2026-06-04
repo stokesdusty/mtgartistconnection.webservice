@@ -1,6 +1,11 @@
 import { Schema, model } from "mongoose";
 
-const mapArtistToEventSchema:Schema = new Schema({
+export interface IMapArtistToEvent {
+    artistName: string;
+    eventId: string;
+}
+
+const mapArtistToEventSchema = new Schema<IMapArtistToEvent>({
     artistName: {
         type: String,
         required: true,
@@ -11,4 +16,4 @@ const mapArtistToEventSchema:Schema = new Schema({
     },
 });
 
-export default model("MapArtistToEvent", mapArtistToEventSchema);
+export default model<IMapArtistToEvent>("MapArtistToEvent", mapArtistToEventSchema);

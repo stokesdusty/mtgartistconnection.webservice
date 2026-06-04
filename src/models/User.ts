@@ -1,6 +1,21 @@
 import { Schema, model } from "mongoose";
 
-const userSchema:Schema = new Schema({
+export interface IUser {
+    name: string;
+    email: string;
+    password: string;
+    role: 'user' | 'admin';
+    emailPreferences: {
+        siteUpdates: boolean;
+        artistUpdates: boolean;
+        localSigningEvents: boolean;
+        newArtistNotifications: boolean;
+    };
+    followedArtists: string[];
+    monitoredStates: string[];
+}
+
+const userSchema = new Schema<IUser>({
     name: {
         type: String,
         required: true,
@@ -42,13 +57,13 @@ const userSchema:Schema = new Schema({
     followedArtists: {
         type: [String],
         default: [],
-        index: true,  // Index for faster queries when finding followers of an artist
+        index: true,
     },
     monitoredStates: {
         type: [String],
         default: [],
-        index: true,  // Index for faster queries when finding users monitoring a state
+        index: true,
     }
 });
 
-export default model("User", userSchema);
+export default model<IUser>("User", userSchema);

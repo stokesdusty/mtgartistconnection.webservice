@@ -25,12 +25,10 @@ export const runDailyEventDigest = async (): Promise<void> => {
     // Group artists by event ID
     const artistsByEventId: { [eventId: string]: string[] } = {};
     artistMappings.forEach((mapping) => {
-      // @ts-ignore
       const eventId = mapping.eventId;
       if (!artistsByEventId[eventId]) {
         artistsByEventId[eventId] = [];
       }
-      // @ts-ignore
       artistsByEventId[eventId].push(mapping.artistName);
     });
 
@@ -103,7 +101,6 @@ export const runDailyEventDigest = async (): Promise<void> => {
     const emailPromises: Promise<void>[] = [];
 
     for (const user of allMonitoringUsers) {
-      // @ts-ignore
       const userMonitoredStates = user.monitoredStates || [];
 
       // Collect all events in states this user monitors
@@ -137,9 +134,7 @@ export const runDailyEventDigest = async (): Promise<void> => {
           : `${eventCount} New Signing Events in Your Area`;
       }
 
-      // @ts-ignore
       emailPromises.push(sendEmail(user.email, subject, emailHtml));
-      // @ts-ignore
       console.log(`Queued email for ${user.email} with ${userEvents.length} event(s)`);
     }
 
