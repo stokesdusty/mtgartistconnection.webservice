@@ -8,6 +8,33 @@ export interface NewsArticle {
   summary: string;
 }
 
+async function generateWithRetry(prompt: string, maxRetries = 3): Promise<string> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (error: any) {
+      const isRateLimit =
+        error.message?.includes('quota') ||
+        error.message?.includes('429') ||
+        error.message?.includes('RESOURCE_EXHAUSTED');
+
+      if (isRateLimit && attempt < maxRetries) {
+        const delayMs = Math.pow(2, attempt) * 5000; // 5s, 10s, 20s
+        console.log(`Rate limit hit, retrying in ${delayMs / 1000}s (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise((res) => setTimeout(res, delayMs));
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error('Max retries exceeded');
+}
+
 export async function generateNewsArticle(
   artistName: string,
   postContent: string,
@@ -43,24 +70,17 @@ Format your response as JSON with the following structure:
 Return ONLY the JSON, no other text.`;
 
   try {
-    // Check if API key is configured
     if (!process.env.GEMINI_API_KEY) {
-      console.error('GEMINI_API_KEY not found in environment variables');
       throw new Error('GEMINI_API_KEY is not configured in environment variables');
     }
 
     console.log('Generating article for artist:', artistName, 'platform:', platform);
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = await generateWithRetry(prompt);
 
     console.log('AI Response received, length:', text.length);
     console.log('AI Response preview:', text.substring(0, 200));
 
-    // Extract JSON from the response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error('Could not find JSON in response:', text);
@@ -69,7 +89,6 @@ Return ONLY the JSON, no other text.`;
 
     const article = JSON.parse(jsonMatch[0]) as NewsArticle;
 
-    // Validate the response
     if (!article.title || !article.content || !article.summary) {
       console.error('Missing required fields in article:', article);
       throw new Error('AI response missing required fields');
@@ -79,16 +98,12 @@ Return ONLY the JSON, no other text.`;
     return article;
   } catch (error: any) {
     console.error('Error generating news article:', error);
-    console.error('Error name:', error?.name);
-    console.error('Error message:', error?.message);
-    console.error('Error stack:', error?.stack);
 
-    // Provide more specific error messages
     if (error.message?.includes('API_KEY') || error.message?.includes('API key')) {
       throw new Error('Gemini API key not configured. Please add GEMINI_API_KEY to your .env file');
     }
-    if (error.message?.includes('quota')) {
-      throw new Error('API quota exceeded. Please check your Gemini API usage');
+    if (error.message?.includes('quota') || error.message?.includes('RESOURCE_EXHAUSTED')) {
+      throw new Error('Gemini daily quota exceeded. The free tier allows 1,500 requests/day — try again tomorrow or upgrade your plan at aistudio.google.com');
     }
     if (error.message?.includes('authentication') || error.message?.includes('401')) {
       throw new Error('Invalid Gemini API key. Please check your API key configuration');
