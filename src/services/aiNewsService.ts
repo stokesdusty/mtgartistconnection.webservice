@@ -9,7 +9,7 @@ export interface NewsArticle {
 }
 
 async function generateWithRetry(prompt: string, maxRetries = 3): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -21,11 +21,16 @@ async function generateWithRetry(prompt: string, maxRetries = 3): Promise<string
         error.message?.includes('429') ||
         error.message?.includes('RESOURCE_EXHAUSTED');
 
-      if (isRateLimit && attempt < maxRetries) {
-        const delayMs = Math.pow(2, attempt) * 5000; // 5s, 10s, 20s
-        console.log(`Rate limit hit, retrying in ${delayMs / 1000}s (attempt ${attempt + 1}/${maxRetries})`);
-        await new Promise((res) => setTimeout(res, delayMs));
-        continue;
+      if (isRateLimit) {
+        // Log full error details to help distinguish RPM vs daily quota
+        console.error('Quota/rate-limit error details:', JSON.stringify(error, null, 2));
+
+        if (attempt < maxRetries) {
+          const delayMs = Math.pow(2, attempt) * 5000; // 5s, 10s, 20s
+          console.log(`Rate limit hit, retrying in ${delayMs / 1000}s (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise((res) => setTimeout(res, delayMs));
+          continue;
+        }
       }
 
       throw error;
@@ -103,7 +108,7 @@ Return ONLY the JSON, no other text.`;
       throw new Error('Gemini API key not configured. Please add GEMINI_API_KEY to your .env file');
     }
     if (error.message?.includes('quota') || error.message?.includes('RESOURCE_EXHAUSTED')) {
-      throw new Error('Gemini daily quota exceeded. The free tier allows 1,500 requests/day — try again tomorrow or upgrade your plan at aistudio.google.com');
+      throw new Error('Gemini quota/rate limit exceeded. Free tier limits: 15 req/min and 1,500 req/day. Check usage at console.cloud.google.com → APIs & Services → Generative Language API → Metrics');
     }
     if (error.message?.includes('authentication') || error.message?.includes('401')) {
       throw new Error('Invalid Gemini API key. Please check your API key configuration');
