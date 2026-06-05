@@ -9,7 +9,7 @@ export interface NewsArticle {
 }
 
 async function generateWithRetry(prompt: string, maxRetries = 3): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
