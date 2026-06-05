@@ -1489,18 +1489,27 @@ const mutations = new GraphQLObjectType({
                         return { success: false, message: "News review not found" };
                     }
 
-                    // If the article is being published for the first time, create an ArtistChange entry
+                    // If the article is being published for the first time, create an ArtistChange entry per artist
                     if (isPublished && !existingNewsReview.isPublished) {
-                        await ArtistChange.create({
-                            artistName: newsReview.artistName,
-                            changeType: 'news_article',
-                            newsArticleId: newsReview._id.toString(),
-                            newsArticleTitle: newsReview.title,
-                            newsArticleSummary: newsReview.summary,
-                            timestamp: new Date(),
-                            processed: false,
-                        });
-                        console.log(`Created ArtistChange entry for published article: ${newsReview.title}`);
+                        const names: string[] =
+                            newsReview.artistNames?.length > 0
+                                ? newsReview.artistNames
+                                : newsReview.artistName
+                                ? [newsReview.artistName]
+                                : [];
+
+                        for (const artistName of names) {
+                            await ArtistChange.create({
+                                artistName,
+                                changeType: 'news_article',
+                                newsArticleId: newsReview._id.toString(),
+                                newsArticleTitle: newsReview.title,
+                                newsArticleSummary: newsReview.summary,
+                                timestamp: new Date(),
+                                processed: false,
+                            });
+                        }
+                        console.log(`Created ${names.length} ArtistChange entry(s) for published article: ${newsReview.title}`);
                     }
 
                     return { success: true, message: "News review updated successfully" };
