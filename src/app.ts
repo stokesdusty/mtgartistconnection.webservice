@@ -44,6 +44,17 @@ app.use(cors({
     credentials: true, // Allow cookies/auth headers
 }));
 app.use(helmet());
+
+app.get('/.well-known/security.txt', (_req, res) => {
+    res.type('text/plain');
+    res.send(
+`Contact: mailto:stokes.dusty@gmail.com
+Expires: ${new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('.')[0]}Z
+Preferred-Languages: en
+`
+    );
+});
+
 app.use(authMiddleware);
 app.use("/graphql", graphqlHTTP((req) => ({
     schema: schema,
