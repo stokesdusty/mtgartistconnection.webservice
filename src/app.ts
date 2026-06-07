@@ -1,4 +1,5 @@
 import express from 'express';
+import helmet from 'helmet';
 import { config } from 'dotenv';
 import { connectToDatabase } from './utils/connection';
 import { graphqlHTTP } from 'express-graphql';
@@ -42,6 +43,7 @@ app.use(cors({
     },
     credentials: true, // Allow cookies/auth headers
 }));
+app.use(helmet());
 app.use(authMiddleware);
 app.use("/graphql", graphqlHTTP((req) => ({
     schema: schema,
