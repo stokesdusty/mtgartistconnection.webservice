@@ -2,7 +2,20 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(ls -la \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\")",
+      "Bash(dir \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\public\")",
+      "Bash(ls -la \"c:\\\\\\\\Users\\\\\\\\NoUse\\\\\\\\OneDrive\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\mtgartistconnection.webservice\\\\\\\\src\")",
+      "Bash(ls -la \"c:\\\\\\\\Users\\\\\\\\NoUse\\\\\\\\OneDrive\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\mtgartistconnection.webservice\\\\\\\\\")",
+      "Bash(ls -la \"c:\\\\\\\\Users\\\\\\\\NoUse\\\\\\\\OneDrive\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\mtgartistconnection.webservice\\\\\\\\src\\\\\\\\middleware\")",
+      "Bash(find \"c:\\\\\\\\Users\\\\\\\\NoUse\\\\\\\\OneDrive\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\mtgartistconnection.webservice\" -name \"server.*\" -o -name \"index.ts\")",
+      "Bash(grep -r \"static\\\\|public\\\\|serveStatic\" \"c:\\\\\\\\Users\\\\\\\\NoUse\\\\\\\\OneDrive\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\mtgartistconnection.webservice\\\\\\\\src\")",
+      "Bash(grep -r \"compression\\\\|Cache-Control\\\\|ETag\\\\|gzip\" \"c:\\\\\\\\Users\\\\\\\\NoUse\\\\\\\\OneDrive\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\mtgartistconnection.webservice\\\\\\\\src\")",
+      "Bash(grep -i \"compression\\\\|cache\" \"c:\\\\\\\\Users\\\\\\\\NoUse\\\\\\\\OneDrive\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\mtgartistconnection.webservice\\\\\\\\package.json\")",
+      "Bash(ls -la \"c:\\\\\\\\Users\\\\\\\\NoUse\\\\\\\\OneDrive\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\mtgartistconnection.webservice\\\\\\\\dist\")",
+      "Bash(ls -la \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\\" | head -30)",
+      "Bash(ls \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\src\\\\styles\\\\\")",
+      "Bash(ls /c/Users/NoUse/OneDrive/Documents/GitHub/mtgartistconnection.server/public/)"
     ]
   }
 }

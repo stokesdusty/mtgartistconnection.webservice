@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import helmet from 'helmet';
 import { config } from 'dotenv';
 import { connectToDatabase } from './utils/connection';
@@ -19,6 +20,8 @@ import { runSocialMediaSync } from './jobs/socialMediaSync';
 config();
 
 const app = express();
+
+app.use(compression());
 
 // Increase body size limit for base64 image uploads (10MB)
 app.use(express.json({ limit: '10mb' }));
@@ -44,6 +47,15 @@ app.use(cors({
     credentials: true, // Allow cookies/auth headers
 }));
 app.use(helmet());
+
+app.use('/graphql', (req, res, next) => {
+    const isMutation = req.body?.query?.trimStart().startsWith('mutation');
+    res.setHeader(
+        'Cache-Control',
+        isMutation ? 'no-store' : 'private, max-age=60, stale-while-revalidate=300'
+    );
+    next();
+});
 
 app.get('/.well-known/security.txt', (_req, res) => {
     res.type('text/plain');

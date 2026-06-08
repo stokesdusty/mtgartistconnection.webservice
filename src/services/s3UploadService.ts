@@ -39,6 +39,7 @@ export const uploadImageFromBase64 = async (
     Key: key,
     Body: buffer,
     ContentType: contentType,
+    CacheControl: 'public, max-age=31536000, immutable',
   });
 
   await s3Client.send(command);
