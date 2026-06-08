@@ -15,7 +15,11 @@
       "Bash(ls -la \"c:\\\\\\\\Users\\\\\\\\NoUse\\\\\\\\OneDrive\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\mtgartistconnection.webservice\\\\\\\\dist\")",
       "Bash(ls -la \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\\" | head -30)",
       "Bash(ls \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\src\\\\styles\\\\\")",
-      "Bash(ls /c/Users/NoUse/OneDrive/Documents/GitHub/mtgartistconnection.server/public/)"
+      "Bash(ls /c/Users/NoUse/OneDrive/Documents/GitHub/mtgartistconnection.server/public/)",
+      "Bash(find \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\src\\\\components\" -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) | head -20)",
+      "Bash(find \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\src\\\\hooks\" -type f -name \"*.ts\" -o -name \"*.tsx\")",
+      "Bash(ls -la \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\public\")",
+      "Bash(ls -la \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\" | grep -E \"^-\" | head -20)"
     ]
   }
 }

@@ -15,6 +15,7 @@ import { runDailyEventDigest } from './jobs/dailyEventDigest';
 import { runScryfallArtistSync } from './jobs/scryfallArtistSync';
 import { runDailyNewArtistDigest } from './jobs/dailyNewArtistDigest';
 import { runSocialMediaSync } from './jobs/socialMediaSync';
+import sitemapRouter from './routes/sitemap';
 
 // Dotenv config
 config();
@@ -56,6 +57,8 @@ app.use('/graphql', (req, res, next) => {
     );
     next();
 });
+
+app.use('/sitemap.xml', sitemapRouter);
 
 app.get('/.well-known/security.txt', (_req, res) => {
     res.type('text/plain');
