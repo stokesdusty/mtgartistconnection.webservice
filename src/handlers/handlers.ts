@@ -657,49 +657,54 @@ const mutations = new GraphQLObjectType({
                 // Require admin privileges
                 requireAdmin(context.isAuthenticated, context.userRole);
 
-                let existingArtist:DocumentType;
-                try {
-                    existingArtist = await Artist.findOne({name});
-                    if(existingArtist) throw new Error("Artist already exists");
-                    const artist = new Artist(
-                        {
-                            name,
-                            email,
-                            artistProofs,
-                            facebook,
-                            haveSignature,
-                            instagram,
-                            patreon,
-                            signing,
-                            signingComment,
-                            twitter,
-                            url,
-                            youtube,
-                            mountainmage,
-                            markssignatureservice,
-                            filename,
-                            artstation,
-                            location,
-                            bluesky,
-                            omalink,
-                            inprnt,
-                            alternate_names
-                        });
-                    const savedArtist = await artist.save();
-                    invalidateArtistCache();
+                const existingArtist = await Artist.findOne({ name });
+                if (existingArtist) throw new Error("Artist already exists");
 
-                    // Create ArtistChange record for new artist notification
+                let savedArtist;
+                try {
+                    const artist = new Artist({
+                        name,
+                        scryfall_name: name,
+                        email,
+                        artistProofs,
+                        facebook,
+                        haveSignature,
+                        instagram,
+                        patreon,
+                        signing,
+                        signingComment,
+                        twitter,
+                        url,
+                        youtube,
+                        mountainmage,
+                        markssignatureservice,
+                        filename,
+                        artstation,
+                        location,
+                        bluesky,
+                        omalink,
+                        inprnt,
+                        alternate_names
+                    });
+                    savedArtist = await artist.save();
+                } catch (err) {
+                    throw new Error("Artist Signup Failed. Try again.");
+                }
+
+                invalidateArtistCache();
+
+                try {
                     await ArtistChange.create({
                         artistName: name,
                         changeType: 'new_artist',
                         timestamp: new Date(),
                         processed: false
                     });
-
-                    return savedArtist;
                 } catch (err) {
-                    throw new Error("Artist Signup Failed. Try again.");
+                    // Non-fatal — artist was saved successfully
                 }
+
+                return savedArtist;
             },
         },
         // delete artist
