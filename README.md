@@ -19,7 +19,7 @@ Backend API for tracking Magic: The Gathering artists, signing events, and card 
 2. Create a `.env` file with:
    ```
    PORT=8080
-   MONGODB_PASSWORD=your_mongodb_password
+   MONGODB_URI=mongodb+srv://your_username:your_password@your_cluster.mongodb.net/?retryWrites=true&w=majority
    ```
 
 3. Run in development mode:

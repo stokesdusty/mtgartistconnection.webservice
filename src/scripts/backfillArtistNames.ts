@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import axios from 'axios';
 import UserCardCollection from '../models/UserCardCollection';
 
-const MONGO_URI = `mongodb+srv://stokesdusty:${process.env.MONGODB_PASSWORD}@cluster0.mo7516l.mongodb.net/?retryWrites=true&w=majority`;
+const MONGO_URI = process.env.MONGODB_URI as string;
 
 async function backfill() {
   await mongoose.connect(MONGO_URI);
