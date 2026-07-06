@@ -2,6 +2,13 @@ import nodemailer from "nodemailer";
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 import { generateWelcomeEmail } from "../templates/welcomeEmail";
 
+// Masks the local part of an email so logs don't contain plaintext PII, e.g. "j***@example.com"
+const maskEmail = (email: string): string => {
+  const [local, domain] = email.split("@");
+  if (!domain) return "***";
+  return `${local.charAt(0)}***@${domain}`;
+};
+
 // Create SESv2 client
 const sesClient = new SESv2Client({
   region: process.env.AWS_REGION,
@@ -37,11 +44,11 @@ export const sendWelcomeEmail = async (to: string) => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       await sendEmail(to, subject, html);
-      console.log(`Welcome email sent to ${to}`);
+      console.log(`Welcome email sent to ${maskEmail(to)}`);
       return;
     } catch (error) {
       lastError = error;
-      console.error(`Failed to send welcome email to ${to} (attempt ${attempt}/${maxRetries}):`, error);
+      console.error(`Failed to send welcome email to ${maskEmail(to)} (attempt ${attempt}/${maxRetries}):`, error);
 
       if (attempt < maxRetries) {
         const waitTime = Math.pow(2, attempt) * 1000;
@@ -51,5 +58,5 @@ export const sendWelcomeEmail = async (to: string) => {
     }
   }
 
-  console.error(`Failed to send welcome email to ${to} after ${maxRetries} attempts`, lastError);
+  console.error(`Failed to send welcome email to ${maskEmail(to)} after ${maxRetries} attempts`, lastError);
 };

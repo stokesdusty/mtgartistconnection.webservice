@@ -135,7 +135,7 @@ export const runDailyEventDigest = async (): Promise<void> => {
       }
 
       emailPromises.push(sendEmail(user.email, subject, emailHtml));
-      console.log(`Queued email for ${user.email} with ${userEvents.length} event(s)`);
+      console.log(`Queued email for user ${user._id} with ${userEvents.length} event(s)`);
     }
 
     // Send all emails

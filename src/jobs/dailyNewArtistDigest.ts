@@ -59,9 +59,9 @@ export const runDailyNewArtistDigest = async (): Promise<void> => {
           html
         );
         emailsSent++;
-        console.log(`New artist digest sent to ${user.email}`);
+        console.log(`New artist digest sent to user ${user._id}`);
       } catch (error) {
-        console.error(`Failed to send new artist digest to ${user.email}:`, error);
+        console.error(`Failed to send new artist digest to user ${user._id}:`, error);
         emailsFailed++;
       }
     }

@@ -124,9 +124,9 @@ export const runScryfallArtistSync = async (): Promise<void> => {
             html
           );
           emailsSent++;
-          console.log(`Report sent to ${admin.email}`);
+          console.log(`Report sent to user ${admin._id}`);
         } catch (error) {
-          console.error(`Failed to send report to ${admin.email}:`, error);
+          console.error(`Failed to send report to user ${admin._id}:`, error);
         }
       }
 

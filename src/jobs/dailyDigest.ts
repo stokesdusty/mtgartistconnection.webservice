@@ -83,7 +83,7 @@ export const runDailyDigest = async (): Promise<void> => {
           html
         );
         emailsSent++;
-        console.log(`Email sent to ${digest.email}`);
+        console.log(`Email sent to user ${userId}`);
       } catch (error) {
         console.error(`Failed to send digest to user ${userId}:`, error);
         emailsFailed++;
