@@ -5,7 +5,7 @@ import { Document, HydratedDocument, startSession } from "mongoose";
 import User, { IUser } from "../models/User";
 import UserCardCollection from "../models/UserCardCollection";
 import SigningEvent from "../models/SigningEvent";
-import { hashSync, compareSync } from "bcrypt-nodejs";
+import { hashSync, compareSync } from "bcryptjs";
 import MapArtistToEvent from "../models/MapArtistToEvent";
 import CardPrice from "../models/CardPrice";
 import CardKingdomPrice from "../models/CardKingdomPrice";
