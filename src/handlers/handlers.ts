@@ -23,6 +23,31 @@ import { uploadImageFromBase64 } from "../services/s3UploadService";
 import { cacheGet, cacheSet, invalidateArtistCache } from "../utils/artistCache";
 import { escapeRegex } from "../utils/regex";
 
+const UPDATABLE_ARTIST_FIELDS = new Set([
+    "name",
+    "email",
+    "artistProofs",
+    "facebook",
+    "haveSignature",
+    "instagram",
+    "patreon",
+    "signing",
+    "signingComment",
+    "twitter",
+    "url",
+    "youtube",
+    "mountainmage",
+    "markssignatureservice",
+    "filename",
+    "artstation",
+    "location",
+    "bluesky",
+    "omalink",
+    "inprnt",
+    "scryfall_name",
+    "alternate_names",
+]);
+
 type DocumentType = Document<any, any, any>;
 
 const CardLookupInput = new GraphQLInputObjectType({
@@ -756,6 +781,10 @@ const mutations = new GraphQLObjectType({
             async resolve(parent, { id, fieldName, valueToSet }, context){
                 // Require admin privileges
                 requireAdmin(context.isAuthenticated, context.userRole);
+
+                if (!UPDATABLE_ARTIST_FIELDS.has(fieldName)) {
+                    throw new Error(`Field '${fieldName}' is not updatable`);
+                }
 
                 const session = await startSession();
                 let artist:DocumentType;
