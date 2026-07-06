@@ -21,6 +21,7 @@ import { sendWelcomeEmail } from "../services/emailService";
 import { generateNewsArticle } from "../services/aiNewsService";
 import { uploadImageFromBase64 } from "../services/s3UploadService";
 import { cacheGet, cacheSet, invalidateArtistCache } from "../utils/artistCache";
+import { escapeRegex } from "../utils/regex";
 
 type DocumentType = Document<any, any, any>;
 
@@ -204,7 +205,7 @@ const RootQuery = new GraphQLObjectType({
                 const latestFetch = await CardKingdomPrice.findOne().sort({ fetchedAt: -1 }).select('fetchedAt').exec();
 
                 const query: any = {
-                    name: { $in: names.map((name: string) => new RegExp(`^${name}$`, 'i')) },
+                    name: { $in: names.map((name: string) => new RegExp(`^${escapeRegex(name)}$`, 'i')) },
                     condition: 'NM',  // Only NM condition
                     foil: false,      // Non-foil only
                 };
@@ -320,7 +321,7 @@ const RootQuery = new GraphQLObjectType({
             async resolve(parent, { artistName, limit }, context) {
                 // Public access - only return published articles for the artist
                 const query = {
-                    artistName: { $regex: new RegExp(`^${artistName}$`, 'i') },
+                    artistName: { $regex: new RegExp(`^${escapeRegex(artistName)}$`, 'i') },
                     isPublished: true
                 };
                 return await NewsReview.find(query).sort({ publishedAt: -1 }).limit(limit);
