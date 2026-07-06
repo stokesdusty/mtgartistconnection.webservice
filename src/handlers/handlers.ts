@@ -151,7 +151,8 @@ const RootQuery = new GraphQLObjectType({
         },
         users: {
             type: GraphQLList(UserType),
-            async resolve() {
+            async resolve(parent, args, context) {
+                requireAdmin(context.isAuthenticated, context.userRole);
                 return await User.find();
             }
         },

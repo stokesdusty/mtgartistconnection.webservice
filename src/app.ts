@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { config } from 'dotenv';
 import { connectToDatabase } from './utils/connection';
 import { graphqlHTTP } from 'express-graphql';
+import { NoSchemaIntrospectionCustomRule } from 'graphql';
 import schema from "./handlers/handlers";
 import cors from "cors";
 import cron from 'node-cron';
@@ -74,6 +75,9 @@ app.use(authMiddleware);
 app.use("/graphql", graphqlHTTP((req) => ({
     schema: schema,
     graphiql: process.env.NODE_ENV !== 'production', // Only enable in development
+    validationRules: process.env.NODE_ENV === 'production'
+        ? [NoSchemaIntrospectionCustomRule]
+        : [],
     context: {
         isAuthenticated: (req as any).isAuthenticated,
         userId: (req as any).userId,
