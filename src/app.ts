@@ -11,6 +11,7 @@ import cron from 'node-cron';
 import { startPriceSyncScheduler } from './services/priceSyncService';
 import { startCardKingdomPriceSyncScheduler } from './services/cardKingdomPriceSync';
 import { authMiddleware } from './middleware/auth';
+import { graphqlAuthRateLimiter } from './middleware/rateLimiter';
 import { runDailyDigest } from './jobs/dailyDigest';
 import { runDailyEventDigest } from './jobs/dailyEventDigest';
 import { runScryfallArtistSync } from './jobs/scryfallArtistSync';
@@ -49,6 +50,10 @@ app.use(cors({
     credentials: true, // Allow cookies/auth headers
 }));
 app.use(helmet());
+
+// Rate-limit login/signup attempts on /graphql to mitigate brute-force and
+// credential-stuffing attacks, without throttling other GraphQL operations.
+app.use('/graphql', graphqlAuthRateLimiter);
 
 app.use('/graphql', (req, res, next) => {
     const isMutation = req.body?.query?.trimStart().startsWith('mutation');
