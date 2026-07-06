@@ -569,9 +569,9 @@ const mutations = new GraphQLObjectType({
                 let existingUser: HydratedDocument<IUser> | null;
                 try {
                     existingUser = await User.findOne({email});
-                    if (!existingUser) throw new Error("No User registered with this email");
+                    if (!existingUser) throw new Error("Invalid email or password");
                     const decryptedPassword = compareSync(password, existingUser.password);
-                    if(!decryptedPassword) throw new Error("Incorrect Password");
+                    if(!decryptedPassword) throw new Error("Invalid email or password");
 
                     // Generate JWT token with user role
                     const token = generateToken(existingUser._id.toString(), existingUser.role);
@@ -583,7 +583,7 @@ const mutations = new GraphQLObjectType({
                         user: existingUser
                     };
                 } catch (err) {
-                    throw new Error(err);
+                    throw err;
                 }
             },
         },
