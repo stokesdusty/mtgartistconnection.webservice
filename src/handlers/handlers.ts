@@ -16,6 +16,7 @@ import NewsReview from "../models/NewsReview";
 import SigningBatch from "../models/SigningBatch";
 import LinkClick from "../models/LinkClick";
 import PriceClick from "../models/PriceClick";
+import PageView from "../models/PageView";
 import { generateToken, generateRefreshToken, verifyRefreshToken, requireAuth, requireAdmin } from "../middleware/auth";
 import { sendWelcomeEmail } from "../services/emailService";
 import { generateNewsArticle } from "../services/aiNewsService";
@@ -80,14 +81,40 @@ const CardRowInput = new GraphQLInputObjectType({
     },
 });
 
+// Midnight at the start of "today" in US Pacific time (handles PST/PDT automatically).
+function startOfTodayPacific(): Date {
+    const tz = 'America/Los_Angeles';
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        timeZoneName: 'shortOffset',
+    }).formatToParts(new Date());
+    const get = (type: string) => parts.find(p => p.type === type)?.value ?? '';
+    const match = get('timeZoneName').match(/GMT([+-]\d{1,2})(?::?(\d{2}))?/);
+    const offsetHours = match ? parseInt(match[1], 10) : 0;
+    const offsetMinutes = match?.[2] ? parseInt(match[2], 10) : 0;
+    const sign = offsetHours < 0 ? '-' : '+';
+    const offset = `${sign}${String(Math.abs(offsetHours)).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
+    return new Date(`${get('year')}-${get('month')}-${get('day')}T00:00:00${offset}`);
+}
+
 function rangeToDate(range?: string | null): Date | null {
     if (!range || range === 'all') return null;
+    if (range === 'today') return startOfTodayPacific();
     const days = range === '7d' ? 7 : range === '30d' ? 30 : range === '90d' ? 90 : null;
     if (days === null) return null;
     const d = new Date();
     d.setDate(d.getDate() - days);
     return d;
 }
+
+// Buckets timestamps into calendar days in US Pacific time so "today" and the
+// daily charts agree on where one day ends and the next begins.
+const PACIFIC_DAY_GROUP_ID = {
+    year:  { $year:  { date: '$timestamp', timezone: 'America/Los_Angeles' } },
+    month: { $month: { date: '$timestamp', timezone: 'America/Los_Angeles' } },
+    day:   { $dayOfMonth: { date: '$timestamp', timezone: 'America/Los_Angeles' } },
+};
 
 const RootQuery = new GraphQLObjectType({
     name: "RootQuery",
@@ -431,11 +458,7 @@ const RootQuery = new GraphQLObjectType({
                 }
 
                 if (groupBy === 'day') {
-                    const groupId = {
-                        year:  { $year: '$timestamp' },
-                        month: { $month: '$timestamp' },
-                        day:   { $dayOfMonth: '$timestamp' },
-                    };
+                    const groupId = PACIFIC_DAY_GROUP_ID;
                     const [price, link] = await Promise.all([
                         PriceClick.aggregate([
                             { $match: matchStage },
@@ -513,11 +536,7 @@ const RootQuery = new GraphQLObjectType({
                 const since = rangeToDate(range);
                 const matchStage = since ? { timestamp: { $gte: since } } : {};
 
-                const groupId = {
-                    year:  { $year: '$timestamp' },
-                    month: { $month: '$timestamp' },
-                    day:   { $dayOfMonth: '$timestamp' },
-                };
+                const groupId = PACIFIC_DAY_GROUP_ID;
 
                 const [price, link] = await Promise.all([
                     PriceClick.aggregate([
@@ -539,6 +558,65 @@ const RootQuery = new GraphQLObjectType({
                 return Object.entries(combined)
                     .sort((a, b) => a[0].localeCompare(b[0]))
                     .map(([date, count]) => ({ date, count }));
+            },
+        },
+        pageViewCount: {
+            type: GraphQLNonNull(GraphQLInt),
+            args: {
+                range: { type: GraphQLString },
+            },
+            async resolve(_parent, { range }, context) {
+                requireAdmin(context.isAuthenticated, context.userRole);
+                const since = rangeToDate(range);
+                const matchStage = since ? { timestamp: { $gte: since } } : {};
+                return await PageView.countDocuments(matchStage);
+            },
+        },
+        pageViewTimeseries: {
+            type: GraphQLNonNull(GraphQLList(GraphQLNonNull(TimeseriesPointType))),
+            args: {
+                range: { type: GraphQLString },
+            },
+            async resolve(_parent, { range }, context) {
+                requireAdmin(context.isAuthenticated, context.userRole);
+                const since = rangeToDate(range);
+                const matchStage = since ? { timestamp: { $gte: since } } : {};
+
+                const rows = await PageView.aggregate([
+                    { $match: matchStage },
+                    { $group: {
+                        _id: PACIFIC_DAY_GROUP_ID,
+                        count: { $sum: 1 },
+                    } },
+                ]);
+
+                return rows
+                    .map((r: any) => ({
+                        date: `${r._id.year}-${String(r._id.month).padStart(2, '0')}-${String(r._id.day).padStart(2, '0')}`,
+                        count: r.count,
+                    }))
+                    .sort((a, b) => a.date.localeCompare(b.date));
+            },
+        },
+        topPagesByViews: {
+            type: GraphQLNonNull(GraphQLList(GraphQLNonNull(ClickStatType))),
+            args: {
+                range: { type: GraphQLString },
+                limit: { type: GraphQLInt },
+            },
+            async resolve(_parent, { range, limit }, context) {
+                requireAdmin(context.isAuthenticated, context.userRole);
+                const since = rangeToDate(range);
+                const matchStage = since ? { timestamp: { $gte: since } } : {};
+                const safeLimit = Math.min(Math.max(1, limit ?? 10), 50);
+
+                const rows = await PageView.aggregate([
+                    { $match: matchStage },
+                    { $group: { _id: '$path', count: { $sum: 1 } } },
+                    { $sort: { count: -1 } },
+                    { $limit: safeLimit },
+                ]);
+                return rows.map((r: any) => ({ key: r._id, count: r.count }));
             },
         },
     },
@@ -1680,6 +1758,20 @@ const mutations = new GraphQLObjectType({
                     return { success: true };
                 } catch (err: any) {
                     return { success: false, message: err.message || "Failed to log click" };
+                }
+            },
+        },
+        logPageView: {
+            type: MutationResponseType,
+            args: {
+                path: { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(_parent, { path }) {
+                try {
+                    await PageView.create({ path });
+                    return { success: true };
+                } catch (err: any) {
+                    return { success: false, message: err.message || "Failed to log page view" };
                 }
             },
         },
