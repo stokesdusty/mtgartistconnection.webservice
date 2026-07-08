@@ -54,9 +54,16 @@ export async function assertSafeUrl(rawUrl: string): Promise<URL> {
   return url;
 }
 
+export interface RenderedImage {
+  src: string;
+  alt: string | null;
+  title: string | null;
+}
+
 export interface RenderedPage {
   text: string;
   finalUrl: string;
+  images: RenderedImage[];
 }
 
 export async function renderPageText(rawUrl: string): Promise<RenderedPage> {
@@ -78,9 +85,19 @@ export async function renderPageText(rawUrl: string): Promise<RenderedPage> {
       waitUntil: 'networkidle2',
       timeout: NAVIGATION_TIMEOUT_MS,
     });
-    const text = await page.evaluate(() => document.body.innerText);
+    const { text, images } = await page.evaluate(() => ({
+      text: document.body.innerText,
+      // img.src (as opposed to getAttribute('src')) is always the
+      // browser-resolved absolute URL, even for relative/protocol-relative
+      // markup, so no URL resolution is needed here.
+      images: Array.from(document.querySelectorAll('img')).map((img) => ({
+        src: img.src,
+        alt: img.alt || null,
+        title: img.title || null,
+      })),
+    }));
     const finalUrl = page.url();
-    return { text, finalUrl };
+    return { text, finalUrl, images };
   } finally {
     await browser.close();
   }

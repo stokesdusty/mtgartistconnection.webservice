@@ -1,4 +1,4 @@
-import { findArtistMatches, splitAlternateNames, normalize } from './artistNameMatcher';
+import { findArtistMatches, splitAlternateNames, normalize, deriveNameFromImageSrc } from './artistNameMatcher';
 
 describe('splitAlternateNames', () => {
   it('returns an empty array for null/undefined/empty input', () => {
@@ -113,5 +113,68 @@ describe('findArtistMatches', () => {
     const pageText = 'Guest:   Todd    McFarlane   will attend.';
     const matches = findArtistMatches(pageText, [{ name: 'Todd McFarlane' }]);
     expect(matches).toHaveLength(1);
+  });
+
+  it('matches an artist via an image alt attribute when not present in page text', () => {
+    const pageText = 'Come meet our special guests this weekend!';
+    const matches = findArtistMatches(pageText, [{ name: 'Randy Gallegos' }], [
+      { src: 'https://example.com/.jpg', alt: 'Randy Gallegos', title: null },
+    ]);
+    expect(matches).toHaveLength(1);
+    expect(matches[0].snippets).toHaveLength(0);
+    expect(matches[0].imageMatches).toEqual([
+      { imageUrl: 'https://example.com/.jpg', matchedText: 'Randy Gallegos' },
+    ]);
+  });
+
+  it('matches an artist via a de-slugified image filename with no alt/title', () => {
+    const pageText = 'Come meet our special guests this weekend!';
+    const matches = findArtistMatches(pageText, [{ name: 'Randy Gallegos' }], [
+      { src: 'https://cdn.example.com/2025/08/c6d026ba-randy-gallegos-1024x1024.jpg', alt: null, title: null },
+    ]);
+    expect(matches).toHaveLength(1);
+    expect(matches[0].imageMatches[0].imageUrl).toBe(
+      'https://cdn.example.com/2025/08/c6d026ba-randy-gallegos-1024x1024.jpg'
+    );
+  });
+
+  it('does not double-count one image matching via both filename and alt text', () => {
+    const matches = findArtistMatches('', [{ name: 'Randy Gallegos' }], [
+      { src: 'https://cdn.example.com/randy-gallegos.jpg', alt: 'Randy Gallegos', title: null },
+    ]);
+    expect(matches[0].occurrences).toBe(1);
+    expect(matches[0].imageMatches).toHaveLength(1);
+  });
+
+  it('does not match images unrelated to the artist corpus', () => {
+    const matches = findArtistMatches('', [{ name: 'Randy Gallegos' }], [
+      { src: 'https://cdn.example.com/2022/01/986cd0be-mono-mobile-logo.webp', alt: null, title: null },
+    ]);
+    expect(matches).toHaveLength(0);
+  });
+});
+
+describe('deriveNameFromImageSrc', () => {
+  it('strips a content-hash prefix, extension, and dimension suffix', () => {
+    expect(deriveNameFromImageSrc('https://cdn.example.com/2024/12/af9b226b-jarel-threat-1024x1024.jpg')).toBe(
+      'jarel threat'
+    );
+  });
+
+  it('handles filenames with no hash prefix', () => {
+    expect(deriveNameFromImageSrc('https://cdn.example.com/rk-post.jpg')).toBe('rk post');
+  });
+
+  it('strips "-scaled" and "@2x" suffixes', () => {
+    expect(deriveNameFromImageSrc('https://cdn.example.com/ken-meyer-jr-scaled.png')).toBe('ken meyer jr');
+    expect(deriveNameFromImageSrc('https://cdn.example.com/ken-meyer-jr@2x.png')).toBe('ken meyer jr');
+  });
+
+  it('decodes URL-encoded characters', () => {
+    expect(deriveNameFromImageSrc('https://cdn.example.com/jos%C3%A9-garcia.jpg')).toBe('josé garcia');
+  });
+
+  it('returns an empty string when there is no filename to work with', () => {
+    expect(deriveNameFromImageSrc('https://cdn.example.com/.jpg')).toBe('');
   });
 });

@@ -91,6 +91,14 @@ export const ArtistFlagsType = new GraphQLObjectType({
     }),
 });
 
+export const ImageMatchType = new GraphQLObjectType({
+    name: "ImageMatchType",
+    fields: () => ({
+        imageUrl:    { type: GraphQLNonNull(GraphQLString) },
+        matchedText: { type: GraphQLNonNull(GraphQLString) },
+    }),
+});
+
 export const ArtistMatchType = new GraphQLObjectType({
     name: "ArtistMatchType",
     fields: () => ({
@@ -98,6 +106,7 @@ export const ArtistMatchType = new GraphQLObjectType({
         name:         { type: GraphQLNonNull(GraphQLString) },
         matchedAlias: { type: GraphQLNonNull(GraphQLString) },
         snippets:     { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLString))) },
+        imageMatches: { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(ImageMatchType))) },
         occurrences:  { type: GraphQLNonNull(GraphQLInt) },
     }),
 });

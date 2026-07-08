@@ -1410,13 +1410,13 @@ const mutations = new GraphQLObjectType({
                 requireAdmin(context.isAuthenticated, context.userRole);
 
                 try {
-                    const { text, finalUrl } = await renderPageText(url);
+                    const { text, finalUrl, images } = await renderPageText(url);
 
                     const corpus = await Artist.find()
                         .select('name alternate_names')
                         .lean();
 
-                    const matches = findArtistMatches(text, corpus as any);
+                    const matches = findArtistMatches(text, corpus as any, images);
                     const byName = new Map(corpus.map((a: any) => [a.name, a._id]));
 
                     return {

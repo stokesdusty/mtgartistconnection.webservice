@@ -5,10 +5,22 @@ export interface ArtistCorpusEntry {
   alternate_names?: string | null;
 }
 
+export interface ImageInfo {
+  src: string;
+  alt?: string | null;
+  title?: string | null;
+}
+
+export interface ImageMatch {
+  imageUrl: string;
+  matchedText: string;
+}
+
 export interface ArtistMatch {
   name: string;
   matchedAlias: string;
   snippets: string[];
+  imageMatches: ImageMatch[];
   occurrences: number;
 }
 
@@ -16,6 +28,7 @@ const ALTERNATE_NAME_SPLIT = /,|;|\/|\baka\b|\n/i;
 const MIN_CANDIDATE_LENGTH = 3;
 const SNIPPET_RADIUS = 60;
 const MAX_SNIPPETS_PER_ARTIST = 5;
+const MAX_IMAGE_MATCHES_PER_ARTIST = 5;
 
 export function splitAlternateNames(raw?: string | null): string[] {
   if (!raw) return [];
@@ -65,8 +78,49 @@ function buildSnippet(text: string, matchIndex: number, matchLength: number): st
   return `${prefix}${text.slice(start, end).trim()}${suffix}`;
 }
 
-export function findArtistMatches(pageText: string, corpus: ArtistCorpusEntry[]): ArtistMatch[] {
+// Many event sites lay guest photos out with empty alt text but a
+// human-picked filename (e.g. "af9b226b-randy-gallegos-1024x1024.jpg"), since
+// whoever uploads the photo naturally names the file after the artist. Strip
+// the CMS noise (content-hash prefix, extension, size/retina suffixes) to
+// recover a name-like phrase from what's left.
+const FILENAME_EXTENSION = /\.(jpe?g|png|gif|webp|svg|avif)$/i;
+const FILENAME_HASH_PREFIX = /^[0-9a-f]{6,10}-/i;
+const FILENAME_NOISE_SUFFIX = /-\d{2,5}x\d{2,5}|-scaled|@\dx/gi;
+
+export function deriveNameFromImageSrc(src: string): string {
+  let filename: string;
+  try {
+    filename = decodeURIComponent(new URL(src).pathname.split('/').pop() || '');
+  } catch {
+    filename = src.split('/').pop() || '';
+  }
+
+  filename = filename
+    .replace(FILENAME_EXTENSION, '')
+    .replace(FILENAME_HASH_PREFIX, '')
+    .replace(FILENAME_NOISE_SUFFIX, '');
+
+  return filename.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function buildImageCandidateText(image: ImageInfo): string {
+  return [image.alt, image.title, deriveNameFromImageSrc(image.src)]
+    .filter((part): part is string => !!part && part.trim().length > 0)
+    .join(' ');
+}
+
+export function findArtistMatches(
+  pageText: string,
+  corpus: ArtistCorpusEntry[],
+  images: ImageInfo[] = []
+): ArtistMatch[] {
   const normalizedPageText = normalize(pageText);
+
+  const normalizedImages = images
+    .map((img) => ({ src: img.src, rawText: buildImageCandidateText(img) }))
+    .filter((img) => img.rawText.length > 0)
+    .map((img) => ({ ...img, normalizedText: normalize(img.rawText) }));
+
   const results: ArtistMatch[] = [];
 
   for (const artist of corpus) {
@@ -77,6 +131,8 @@ export function findArtistMatches(pageText: string, corpus: ArtistCorpusEntry[])
     let occurrences = 0;
     let matchedAlias: string | null = null;
     const snippets: string[] = [];
+    const imageMatches: ImageMatch[] = [];
+    const matchedImageSrcs = new Set<string>();
 
     for (const candidate of candidates) {
       const pattern = buildCandidatePattern(candidate);
@@ -87,21 +143,34 @@ export function findArtistMatches(pageText: string, corpus: ArtistCorpusEntry[])
       // a non-word character (e.g. "Foo (Bar)+" followed by a space). Lookaround
       // just checks the adjacent text character isn't alphanumeric, regardless
       // of what the candidate's own edge character is.
-      const regex = new RegExp(`(?<!\\w)${pattern}(?!\\w)`, 'g');
+      const textRegex = new RegExp(`(?<!\\w)${pattern}(?!\\w)`, 'g');
       let match: RegExpExecArray | null;
 
-      while ((match = regex.exec(normalizedPageText)) !== null) {
+      while ((match = textRegex.exec(normalizedPageText)) !== null) {
         occurrences++;
         if (!matchedAlias) matchedAlias = candidate;
         if (snippets.length < MAX_SNIPPETS_PER_ARTIST) {
           snippets.push(buildSnippet(pageText, match.index, match[0].length));
         }
-        if (match.index === regex.lastIndex) regex.lastIndex++;
+        if (match.index === textRegex.lastIndex) textRegex.lastIndex++;
+      }
+
+      const imageRegex = new RegExp(`(?<!\\w)${pattern}(?!\\w)`);
+      for (const img of normalizedImages) {
+        if (matchedImageSrcs.has(img.src)) continue; // one match per image per artist, regardless of which candidate/attribute hit
+        if (imageRegex.test(img.normalizedText)) {
+          occurrences++;
+          if (!matchedAlias) matchedAlias = candidate;
+          matchedImageSrcs.add(img.src);
+          if (imageMatches.length < MAX_IMAGE_MATCHES_PER_ARTIST) {
+            imageMatches.push({ imageUrl: img.src, matchedText: img.rawText });
+          }
+        }
       }
     }
 
     if (occurrences > 0 && matchedAlias) {
-      results.push({ name: artist.name, matchedAlias, snippets, occurrences });
+      results.push({ name: artist.name, matchedAlias, snippets, imageMatches, occurrences });
     }
   }
 
