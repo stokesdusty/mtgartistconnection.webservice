@@ -91,6 +91,26 @@ export const ArtistFlagsType = new GraphQLObjectType({
     }),
 });
 
+export const ArtistMatchType = new GraphQLObjectType({
+    name: "ArtistMatchType",
+    fields: () => ({
+        artistId:     { type: GraphQLNonNull(GraphQLID) },
+        name:         { type: GraphQLNonNull(GraphQLString) },
+        matchedAlias: { type: GraphQLNonNull(GraphQLString) },
+        snippets:     { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLString))) },
+        occurrences:  { type: GraphQLNonNull(GraphQLInt) },
+    }),
+});
+
+export const ScanUrlResultType = new GraphQLObjectType({
+    name: "ScanUrlResultType",
+    fields: () => ({
+        matches:           { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(ArtistMatchType))) },
+        scannedTextLength: { type: GraphQLNonNull(GraphQLInt) },
+        scannedUrl:        { type: GraphQLNonNull(GraphQLString) },
+    }),
+});
+
 export const ArtistPageType = new GraphQLObjectType({
     name: "ArtistPageType",
     fields: () => ({

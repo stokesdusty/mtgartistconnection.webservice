@@ -1,5 +1,5 @@
 import { GraphQLBoolean, GraphQLFloat, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, RefreshTokenResponseType, CardPriceType, CardKingdomPriceType, ClickStatType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, SigningBatchType, SigningEventType, TimeseriesPointType, TopArtistClickType, UserCardCollectionItemType, UserType } from "../schema/schema";
+import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, RefreshTokenResponseType, CardPriceType, CardKingdomPriceType, ClickStatType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, ScanUrlResultType, SigningBatchType, SigningEventType, TimeseriesPointType, TopArtistClickType, UserCardCollectionItemType, UserType } from "../schema/schema";
 import Artist, { IArtist } from "../models/Artist";
 import { Document, HydratedDocument, startSession } from "mongoose";
 import User, { IUser } from "../models/User";
@@ -22,6 +22,8 @@ import { generateNewsArticle } from "../services/aiNewsService";
 import { uploadImageFromBase64 } from "../services/s3UploadService";
 import { cacheGet, cacheSet, invalidateArtistCache } from "../utils/artistCache";
 import { escapeRegex } from "../utils/regex";
+import { renderPageText } from "../services/urlScanService";
+import { findArtistMatches } from "../services/artistNameMatcher";
 
 const UPDATABLE_ARTIST_FIELDS = new Set([
     "name",
@@ -1395,6 +1397,35 @@ const mutations = new GraphQLObjectType({
                     return newsReview;
                 } catch (err) {
                     throw new Error(err.message || "Failed to generate news article");
+                }
+            }
+        },
+        scanUrlForArtists: {
+            type: ScanUrlResultType,
+            args: {
+                url: { type: GraphQLNonNull(GraphQLString) }
+            },
+            async resolve(parent, { url }, context) {
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
+
+                try {
+                    const { text, finalUrl } = await renderPageText(url);
+
+                    const corpus = await Artist.find()
+                        .select('name alternate_names')
+                        .lean();
+
+                    const matches = findArtistMatches(text, corpus as any);
+                    const byName = new Map(corpus.map((a: any) => [a.name, a._id]));
+
+                    return {
+                        matches: matches.map(m => ({ ...m, artistId: byName.get(m.name) })),
+                        scannedTextLength: text.length,
+                        scannedUrl: finalUrl,
+                    };
+                } catch (err) {
+                    throw new Error(err.message || "Failed to scan URL");
                 }
             }
         },
