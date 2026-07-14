@@ -152,6 +152,9 @@ const RootQuery = new GraphQLObjectType({
             },
             async resolve(_parent, { offset = 0, limit = 60 }) {
                 const safeLimit = Math.min(Math.max(1, limit), 120);
+                const cacheKey = `artistsPage:${offset}:${safeLimit}` as const;
+                const cached = cacheGet<{ artists: any[]; total: number }>(cacheKey);
+                if (cached) return cached;
                 const [artists, total] = await Promise.all([
                     Artist.find()
                         .select('name filename')
@@ -162,7 +165,9 @@ const RootQuery = new GraphQLObjectType({
                         .lean(),
                     Artist.countDocuments(),
                 ]);
-                return { artists, total };
+                const result = { artists, total };
+                cacheSet(cacheKey, result);
+                return result;
             },
         },
         // Lightweight filter index — one packed bitfield per artist instead of four string fields.
@@ -175,7 +180,7 @@ const RootQuery = new GraphQLObjectType({
                 const cached = cacheGet<any[]>('artistFilterFlags');
                 if (cached) return cached;
                 const artists = await Artist.find()
-                    .select('name location alternate_names markssignatureservice mountainmage artistProofs')
+                    .select('name filename location alternate_names markssignatureservice mountainmage artistProofs')
                     .sort({ name: 1 })
                     .collation({ locale: 'en', caseLevel: true })
                     .lean();
@@ -184,7 +189,7 @@ const RootQuery = new GraphQLObjectType({
                     if (a.markssignatureservice === 'true') flags |= 1;
                     if (a.mountainmage && a.mountainmage !== '' && a.mountainmage !== 'false') flags |= 2;
                     if (a.artistProofs === 'yes' || a.artistProofs === 'true') flags |= 4;
-                    return { name: a.name, flags, location: a.location ?? null, alternate_names: a.alternate_names ?? null };
+                    return { name: a.name, flags, location: a.location ?? null, alternate_names: a.alternate_names ?? null, filename: a.filename ?? null };
                 });
                 cacheSet('artistFilterFlags', result);
                 return result;

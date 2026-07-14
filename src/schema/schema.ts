@@ -88,6 +88,7 @@ export const ArtistFlagsType = new GraphQLObjectType({
         flags:           { type: GraphQLNonNull(GraphQLInt) },
         location:        { type: GraphQLString },
         alternate_names: { type: GraphQLString },
+        filename:        { type: GraphQLString },
     }),
 });
 

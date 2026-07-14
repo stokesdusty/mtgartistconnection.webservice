@@ -46,6 +46,13 @@ describe('cacheGet', () => {
     expect(cacheGet('artistNames')).toEqual(['Alice']);
     expect(cacheGet('artistFilterFlags')).toEqual({ flags: 7 });
   });
+
+  it('works with a templated artistsPage key', () => {
+    cacheSet('artistsPage:0:60', { artists: ['Alice'], total: 1 });
+    cacheSet('artistsPage:60:60', { artists: ['Bob'], total: 1 });
+    expect(cacheGet('artistsPage:0:60')).toEqual({ artists: ['Alice'], total: 1 });
+    expect(cacheGet('artistsPage:60:60')).toEqual({ artists: ['Bob'], total: 1 });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -89,6 +96,12 @@ describe('invalidateArtistCache', () => {
     invalidateArtistCache();
     expect(cacheGet('artistNames')).toBeUndefined();
     expect(cacheGet('artistFilterFlags')).toBeUndefined();
+  });
+
+  it('clears templated artistsPage entries too', () => {
+    cacheSet('artistsPage:0:60', { artists: ['Alice'], total: 1 });
+    invalidateArtistCache();
+    expect(cacheGet('artistsPage:0:60')).toBeUndefined();
   });
 
   it('is safe to call when the cache is already empty', () => {

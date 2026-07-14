@@ -1,5 +1,4 @@
-const KEYS = ['artistFilterFlags', 'artistNames'] as const;
-type Key = typeof KEYS[number];
+type Key = 'artistFilterFlags' | 'artistNames' | `artistsPage:${number}:${number}`;
 
 interface Entry<T> { value: T; expiresAt: number; }
 
@@ -19,5 +18,5 @@ export function cacheSet<T>(key: Key, value: T, ttlMs: number = ARTIST_CACHE_TTL
 }
 
 export function invalidateArtistCache(): void {
-    KEYS.forEach(k => store.delete(k));
+    store.clear();
 }
