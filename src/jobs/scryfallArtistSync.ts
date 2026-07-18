@@ -28,6 +28,20 @@ const IGNORED_SCRYFALL_NAMES = new Set([
   'steve lavigne'
 ]);
 
+// Artists in our DB that we know don't exist on Scryfall (skip flagging these as "not found on Scryfall")
+// NOTE: All entries must be lowercase for case-insensitive matching, and match the artist's scryfall_name field
+const KNOWN_NOT_ON_SCRYFALL = new Set([
+  'alex boyd',
+  'cheol joo lee',
+  'diana martinez',
+  'fares maese',
+  'igor sid',
+  'jaime martinez',
+  'john blanche',
+  'john michelbach',
+  'leonid kozienko'
+]);
+
 interface ScryfallCatalogResponse {
   object: string;
   uri: string;
@@ -77,7 +91,8 @@ export const runScryfallArtistSync = async (): Promise<void> => {
       if (
         artist.scryfall_name &&
         artist.scryfall_name.toLowerCase() !== 'unknown' &&
-        !scryfallNamesLower.has(artist.scryfall_name.toLowerCase())
+        !scryfallNamesLower.has(artist.scryfall_name.toLowerCase()) &&
+        !KNOWN_NOT_ON_SCRYFALL.has(artist.scryfall_name.toLowerCase())
       ) {
         notOnScryfall.push({
           name: artist.name,
