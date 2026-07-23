@@ -19,7 +19,8 @@
       "Bash(find \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\src\\\\components\" -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) | head -20)",
       "Bash(find \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\src\\\\hooks\" -type f -name \"*.ts\" -o -name \"*.tsx\")",
       "Bash(ls -la \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\public\")",
-      "Bash(ls -la \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\" | grep -E \"^-\" | head -20)"
+      "Bash(ls -la \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\" | grep -E \"^-\" | head -20)",
+      "Bash(npx tsc *)"
     ]
   }
 }
