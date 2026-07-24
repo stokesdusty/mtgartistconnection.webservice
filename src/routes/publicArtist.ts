@@ -32,7 +32,7 @@ export function toPublicArtistPayload(artist: IArtist) {
     }
 
     return {
-        name: artist.name,
+        name: artist.scryfall_name || artist.name,
         pageUrl: `${PUBLIC_ARTIST_BASE_URL}/artist/${encodeURIComponent(artist.name)}`,
         location: artist.location || null,
         website: artist.url || null,
