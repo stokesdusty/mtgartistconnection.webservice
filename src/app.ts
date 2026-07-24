@@ -18,6 +18,7 @@ import { runScryfallArtistSync } from './jobs/scryfallArtistSync';
 import { runDailyNewArtistDigest } from './jobs/dailyNewArtistDigest';
 import sitemapRouter from './routes/sitemap';
 import publicArtistRouter from './routes/publicArtist';
+import publicArtistsRouter from './routes/publicArtists';
 
 // Dotenv config
 config();
@@ -66,6 +67,7 @@ app.use('/graphql', (req, res, next) => {
 
 app.use('/sitemap.xml', sitemapRouter);
 app.use('/api/public/artist', publicArtistRouter);
+app.use('/api/public/artists', publicArtistsRouter);
 
 app.get('/.well-known/security.txt', (_req, res) => {
     res.type('text/plain');

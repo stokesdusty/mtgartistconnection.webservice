@@ -20,7 +20,8 @@
       "Bash(find \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\src\\\\hooks\" -type f -name \"*.ts\" -o -name \"*.tsx\")",
       "Bash(ls -la \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\\\\public\")",
       "Bash(ls -la \"c:\\\\Users\\\\NoUse\\\\OneDrive\\\\Documents\\\\GitHub\\\\mtgartistconnection.server\" | grep -E \"^-\" | head -20)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(grep -nE '^\\\\s{4,12}[a-zA-Z_][a-zA-Z0-9_]*:\\\\s*\\\\{\\\\s*$' src/handlers/handlers.ts)"
     ]
   }
 }
