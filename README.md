@@ -35,6 +35,24 @@ Backend API for tracking Magic: The Gathering artists, signing events, and card 
 
 ## API Endpoints
 
+### Public Artist API (REST)
+
+Read-only, unauthenticated endpoints for third-party consumers (e.g. ProxyPrints.ca). `name` is the artist's `scryfall_name`. Only a whitelisted set of fields is ever returned — never `email`/`signingComment`/other internal fields.
+
+| Endpoint | Description | Example |
+|----------|-------------|---------|
+| `GET /api/public/artist/:artistName` | Single artist by `scryfall_name` (case-insensitive) | https://mtgartistconnectionwebservice-production.up.railway.app/api/public/artist/Aaron%20Miller |
+| `GET /api/public/artists` | All artists, same shape as above, as an array | https://mtgartistconnectionwebservice-production.up.railway.app/api/public/artists |
+
+**Rate limits & caching** (intended for daily/occasional syncs, not polling):
+
+| Endpoint | Rate limit | `Cache-Control` |
+|----------|-----------|------------------|
+| `GET /api/public/artist/:artistName` | 60 requests / 15 min per IP | `public, max-age=3600` (1 hour) |
+| `GET /api/public/artists` | 12 requests / hour per IP | `public, max-age=86400` (1 day) |
+
+Exceeding the limit returns `429` with `{ "error": "Too many requests. Please try again later." }`. Limits are defined in `src/routes/publicArtist.ts` and `src/routes/publicArtists.ts`.
+
 ### GraphQL: `POST /graphql`
 
 Interactive GraphiQL interface available at `http://localhost:8080/graphql`
