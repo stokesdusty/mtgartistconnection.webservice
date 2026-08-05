@@ -83,14 +83,17 @@ const CardRowInput = new GraphQLInputObjectType({
     },
 });
 
-// Midnight at the start of "today" in US Pacific time (handles PST/PDT automatically).
-function startOfTodayPacific(): Date {
+// Midnight at the start of a Pacific calendar day, `daysAgo` days before now (0 = today).
+// Subtracting in raw UTC milliseconds first, then formatting with the IANA zone, means the
+// correct historical PST/PDT offset is used even when the range spans a DST transition.
+function startOfDayPacific(daysAgo: number = 0): Date {
     const tz = 'America/Los_Angeles';
+    const target = new Date(Date.now() - daysAgo * 86400000);
     const parts = new Intl.DateTimeFormat('en-US', {
         timeZone: tz,
         year: 'numeric', month: '2-digit', day: '2-digit',
         timeZoneName: 'shortOffset',
-    }).formatToParts(new Date());
+    }).formatToParts(target);
     const get = (type: string) => parts.find(p => p.type === type)?.value ?? '';
     const match = get('timeZoneName').match(/GMT([+-]\d{1,2})(?::?(\d{2}))?/);
     const offsetHours = match ? parseInt(match[1], 10) : 0;
@@ -100,14 +103,20 @@ function startOfTodayPacific(): Date {
     return new Date(`${get('year')}-${get('month')}-${get('day')}T00:00:00${offset}`);
 }
 
+// Midnight at the start of "today" in US Pacific time (handles PST/PDT automatically).
+function startOfTodayPacific(): Date {
+    return startOfDayPacific(0);
+}
+
 function rangeToDate(range?: string | null): Date | null {
     if (!range || range === 'all') return null;
     if (range === 'today') return startOfTodayPacific();
     const days = range === '7d' ? 7 : range === '30d' ? 30 : range === '90d' ? 90 : null;
     if (days === null) return null;
-    const d = new Date();
-    d.setDate(d.getDate() - days);
-    return d;
+    // Anchor to Pacific midnight (not the server's raw clock) so day-based ranges land on the
+    // same day boundary as "today" and the Pacific-bucketed daily charts. Includes today plus
+    // (days - 1) prior full days, e.g. "7d" covers the last 7 calendar days including today.
+    return startOfDayPacific(days - 1);
 }
 
 // Buckets timestamps into calendar days in US Pacific time so "today" and the
