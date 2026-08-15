@@ -9,6 +9,7 @@ const SCRYFALL_ARTISTS_URL = 'https://api.scryfall.com/catalog/artist-names';
 // Scryfall names to ignore (artists we've confirmed don't need to be added)
 // NOTE: All entries must be lowercase for case-insensitive matching
 const IGNORED_SCRYFALL_NAMES = new Set([
+  'andre garcia',
   'dave hunt',
   'frank martin',
   'j. schirmer',
