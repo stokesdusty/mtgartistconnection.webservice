@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 
 const S3_BUCKET = "mtgartistconnection";
 const AWS_REGION = process.env.AWS_REGION || "us-west-1";
+const CDN_BASE_URL = process.env.CDN_BASE_URL || "https://d25ut0vhqgdazl.cloudfront.net";
 
 const s3Client = new S3Client({
   region: AWS_REGION,
@@ -45,7 +46,7 @@ export const uploadImageFromBase64 = async (
   await s3Client.send(command);
 
   // The final public URL where the image will be accessible
-  const imageUrl = `https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${key}`;
+  const imageUrl = `${CDN_BASE_URL}/${key}`;
 
   return {
     imageUrl,
