@@ -16,6 +16,7 @@ import { runDailyDigest } from './jobs/dailyDigest';
 import { runDailyEventDigest } from './jobs/dailyEventDigest';
 import { runScryfallArtistSync } from './jobs/scryfallArtistSync';
 import { runDailyNewArtistDigest } from './jobs/dailyNewArtistDigest';
+import { runMountainMageSync } from './jobs/mountainMageSync';
 import sitemapRouter from './routes/sitemap';
 import publicArtistRouter from './routes/publicArtist';
 import publicArtistsRouter from './routes/publicArtists';
@@ -143,6 +144,17 @@ connectToDatabase()
             }
         });
         console.log('Daily new artist digest cron job scheduled for 8 PM daily');
+
+        // Run Mountain Mage Signatures sync daily at 5 AM UTC
+        cron.schedule('0 5 * * *', async () => {
+            console.log('Triggering Mountain Mage sync job...');
+            try {
+                await runMountainMageSync();
+            } catch (error) {
+                console.error('Mountain Mage sync job failed:', error);
+            }
+        });
+        console.log('Mountain Mage sync cron job scheduled for 5 AM UTC daily');
 
 
         return app.listen(process.env.PORT,
