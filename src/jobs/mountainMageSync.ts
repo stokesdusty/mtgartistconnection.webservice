@@ -24,6 +24,22 @@ interface ShopifyProductsResponse {
   products: ShopifyProduct[];
 }
 
+// Normalizes a Mountain Mage URL so equivalent links compare equal regardless of protocol,
+// "www.", query string, trailing slash, casing, or a /collections/<x>/ prefix. Product URLs
+// reduce to their handle; anything else falls back to the cleaned-up URL.
+const normalizeMountainMageUrl = (url: string): string => {
+  const cleaned = url
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/[?#].*$/, '')
+    .replace(/\/+$/, '');
+
+  const productMatch = cleaned.match(/\/products\/([^/]+)$/);
+  return productMatch ? `product:${productMatch[1]}` : cleaned;
+};
+
 const fetchAllMountainMageArtists = async (): Promise<{ name: string; url: string }[]> => {
   const artists: { name: string; url: string }[] = [];
 
@@ -67,8 +83,12 @@ export const runMountainMageSync = async (): Promise<void> => {
     console.log(`Found ${dbArtists.length} artists in database`);
 
     const dbArtistsByNameLower = new Map<string, (typeof dbArtists)[number]>();
+    const dbMountainMageUrls = new Set<string>();
     for (const artist of dbArtists) {
       dbArtistsByNameLower.set(artist.name.trim().toLowerCase(), artist);
+      if (artist.mountainmage) {
+        dbMountainMageUrls.add(normalizeMountainMageUrl(artist.mountainmage));
+      }
     }
 
     // 3. Compare each Mountain Mage artist against our database
@@ -84,7 +104,10 @@ export const runMountainMageSync = async (): Promise<void> => {
       const dbArtist = dbArtistsByNameLower.get(nameLower);
 
       if (!dbArtist) {
-        unmatchedArtists.push(mmArtist);
+        // Name differs from ours, but if the link is already on an artist row, it's accounted for
+        if (!dbMountainMageUrls.has(normalizeMountainMageUrl(mmArtist.url))) {
+          unmatchedArtists.push(mmArtist);
+        }
         continue;
       }
 

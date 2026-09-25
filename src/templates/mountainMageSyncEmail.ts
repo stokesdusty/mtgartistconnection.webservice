@@ -40,7 +40,7 @@ export const generateMountainMageSyncEmail = (
     <h2 style="color: #507A60; margin-bottom: 15px;">Mountain Mage Artists Not Found in Your Database</h2>
     <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
       The following ${unmatchedArtists.length.toLocaleString()} artists have a page on Mountain Mage Signatures but
-      no artist in your database matches their name.
+      no artist in your database matches their name or has their Mountain Mage link.
     </p>
     <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
       <ul style="margin: 0; padding-left: 20px; font-size: 14px;">
