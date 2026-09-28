@@ -78,22 +78,33 @@ export const runMountainMageSync = async (): Promise<void> => {
     const mountainMageArtists = await fetchAllMountainMageArtists();
     console.log(`Fetched ${mountainMageArtists.length} artists from Mountain Mage Signatures`);
 
-    // 2. Get all artists from our database
-    const dbArtists = await Artist.find({}, { name: 1, mountainmage: 1 });
+    // 2. Get all artists from our database (lean: plain objects, no Mongoose document overhead)
+    const dbArtists = await Artist.find({}, { name: 1, mountainmage: 1 }).lean();
     console.log(`Found ${dbArtists.length} artists in database`);
 
+    // Build lookup tables once so every check below is an O(1) Map/Set lookup,
+    // and each URL is normalized only once
     const dbArtistsByNameLower = new Map<string, (typeof dbArtists)[number]>();
+    const dbArtistsWithLinks: { name: string; url: string; normalizedUrl: string }[] = [];
     const dbMountainMageUrls = new Set<string>();
     for (const artist of dbArtists) {
       dbArtistsByNameLower.set(artist.name.trim().toLowerCase(), artist);
       if (artist.mountainmage) {
-        dbMountainMageUrls.add(normalizeMountainMageUrl(artist.mountainmage));
+        const normalizedUrl = normalizeMountainMageUrl(artist.mountainmage);
+        dbArtistsWithLinks.push({ name: artist.name, url: artist.mountainmage, normalizedUrl });
+        dbMountainMageUrls.add(normalizedUrl);
       }
+    }
+
+    const siteMountainMageUrls = new Set<string>();
+    for (const mmArtist of mountainMageArtists) {
+      siteMountainMageUrls.add(normalizeMountainMageUrl(mmArtist.url));
     }
 
     // 3. Compare each Mountain Mage artist against our database
     const urlMismatches: { name: string; currentUrl: string; expectedUrl: string }[] = [];
     const unmatchedArtists: { name: string; url: string }[] = [];
+    const mismatchedDbNames = new Set<string>();
 
     for (const mmArtist of mountainMageArtists) {
       const nameLower = mmArtist.name.trim().toLowerCase();
@@ -117,14 +128,22 @@ export const runMountainMageSync = async (): Promise<void> => {
           currentUrl: dbArtist.mountainmage || '',
           expectedUrl: mmArtist.url
         });
+        mismatchedDbNames.add(dbArtist.name);
       }
     }
 
+    // 4. Find links in our database that don't point to any listing on the site. Artists already
+    // reported as URL mismatches are skipped so the same row isn't flagged twice.
+    const staleDbLinks = dbArtistsWithLinks
+      .filter(artist => !siteMountainMageUrls.has(artist.normalizedUrl) && !mismatchedDbNames.has(artist.name))
+      .map(({ name, url }) => ({ name, url }));
+
     console.log(`Found ${urlMismatches.length} mountainmage URL mismatches`);
     console.log(`Found ${unmatchedArtists.length} Mountain Mage artists not matched in database`);
+    console.log(`Found ${staleDbLinks.length} database mountainmage links not found on Mountain Mage`);
 
-    // 4. Email the admins if there's anything to report
-    if (urlMismatches.length > 0 || unmatchedArtists.length > 0) {
+    // 5. Email the admins if there's anything to report
+    if (urlMismatches.length > 0 || unmatchedArtists.length > 0 || staleDbLinks.length > 0) {
       const adminUsers = await User.find({ role: 'admin' });
 
       if (adminUsers.length === 0) {
@@ -134,10 +153,12 @@ export const runMountainMageSync = async (): Promise<void> => {
 
       urlMismatches.sort((a, b) => a.name.localeCompare(b.name));
       unmatchedArtists.sort((a, b) => a.name.localeCompare(b.name));
+      staleDbLinks.sort((a, b) => a.name.localeCompare(b.name));
 
       const html = generateMountainMageSyncEmail(
         urlMismatches,
         unmatchedArtists,
+        staleDbLinks,
         mountainMageArtists.length,
         dbArtists.length
       );
@@ -148,20 +169,23 @@ export const runMountainMageSync = async (): Promise<void> => {
         year: 'numeric'
       });
 
+      // Send to all admins in parallel; one failure doesn't block the others
+      const results = await Promise.allSettled(
+        adminUsers.map(admin =>
+          sendEmail(admin.email, `Mountain Mage Signatures Sync Report - ${today}`, html)
+        )
+      );
+
       let emailsSent = 0;
-      for (const admin of adminUsers) {
-        try {
-          await sendEmail(
-            admin.email,
-            `Mountain Mage Signatures Sync Report - ${today}`,
-            html
-          );
+      results.forEach((result, i) => {
+        const adminId = adminUsers[i]._id;
+        if (result.status === 'fulfilled') {
           emailsSent++;
-          console.log(`Report sent to user ${admin._id}`);
-        } catch (error) {
-          console.error(`Failed to send report to user ${admin._id}:`, error);
+          console.log(`Report sent to user ${adminId}`);
+        } else {
+          console.error(`Failed to send report to user ${adminId}:`, result.reason);
         }
-      }
+      });
 
       console.log(`Mountain Mage sync complete: ${emailsSent} emails sent`);
     } else {

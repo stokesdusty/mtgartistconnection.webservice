@@ -9,9 +9,15 @@ interface UnmatchedArtist {
   url: string;
 }
 
+interface StaleDbLink {
+  name: string;
+  url: string;
+}
+
 export const generateMountainMageSyncEmail = (
   urlMismatches: UrlMismatch[],
   unmatchedArtists: UnmatchedArtist[],
+  staleDbLinks: StaleDbLink[],
   mountainMageTotal: number,
   dbTotal: number
 ): string => {
@@ -42,9 +48,26 @@ export const generateMountainMageSyncEmail = (
       The following ${unmatchedArtists.length.toLocaleString()} artists have a page on Mountain Mage Signatures but
       no artist in your database matches their name or has their Mountain Mage link.
     </p>
-    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
+    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 10px; margin-bottom: 25px;">
       <ul style="margin: 0; padding-left: 20px; font-size: 14px;">
         ${unmatchedArtistsList}
+      </ul>
+    </div>
+  ` : '';
+
+  const staleDbLinksList = staleDbLinks
+    .map(artist => `<li style="margin-bottom: 5px;"><strong>${artist.name}</strong> (${artist.url})</li>`)
+    .join('');
+
+  const staleDbLinksSection = staleDbLinks.length > 0 ? `
+    <h2 style="color: #507A60; margin-bottom: 15px;">Database Links Not Found on Mountain Mage</h2>
+    <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+      The following ${staleDbLinks.length.toLocaleString()} artists have a <code>mountainmage</code> link in your
+      database that doesn't match any artist page currently listed on Mountain Mage Signatures.
+    </p>
+    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
+      <ul style="margin: 0; padding-left: 20px; font-size: 14px;">
+        ${staleDbLinksList}
       </ul>
     </div>
   ` : '';
@@ -70,11 +93,13 @@ export const generateMountainMageSyncEmail = (
             <li>Database artists: <strong>${dbTotal.toLocaleString()}</strong></li>
             <li>URL mismatches: <strong>${urlMismatches.length.toLocaleString()}</strong></li>
             <li>Mountain Mage artists not matched in DB: <strong>${unmatchedArtists.length.toLocaleString()}</strong></li>
+            <li>DB links not found on Mountain Mage: <strong>${staleDbLinks.length.toLocaleString()}</strong></li>
           </ul>
         </div>
 
         ${urlMismatchesSection}
         ${unmatchedArtistsSection}
+        ${staleDbLinksSection}
 
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #999;">
           <p>
