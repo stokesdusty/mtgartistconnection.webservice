@@ -89,7 +89,8 @@ export const runMountainMageSync = async (): Promise<void> => {
     const dbMountainMageUrls = new Set<string>();
     for (const artist of dbArtists) {
       dbArtistsByNameLower.set(artist.name.trim().toLowerCase(), artist);
-      if (artist.mountainmage) {
+      // 'false' is a placeholder meaning "not on Mountain Mage", not a link, so it's never stale
+      if (artist.mountainmage && artist.mountainmage.trim().toLowerCase() !== 'false') {
         const normalizedUrl = normalizeMountainMageUrl(artist.mountainmage);
         dbArtistsWithLinks.push({ name: artist.name, url: artist.mountainmage, normalizedUrl });
         dbMountainMageUrls.add(normalizedUrl);
