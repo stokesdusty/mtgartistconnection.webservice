@@ -7,8 +7,8 @@ export const runDailyDigest = async (): Promise<void> => {
   console.log('Starting daily digest job...');
 
   try {
-    // 1. Get unprocessed changes
-    const changes = await ArtistChange.find({ processed: false });
+    // 1. Get unprocessed changes (new_artist changes are handled by the new artist digest)
+    const changes = await ArtistChange.find({ processed: false, changeType: { $ne: 'new_artist' } });
 
     if (changes.length === 0) {
       console.log('No unprocessed changes found');
@@ -92,7 +92,7 @@ export const runDailyDigest = async (): Promise<void> => {
 
     // 5. Mark as processed
     const updateResult = await ArtistChange.updateMany(
-      { processed: false },
+      { processed: false, changeType: { $ne: 'new_artist' } },
       {
         $set: {
           processed: true,

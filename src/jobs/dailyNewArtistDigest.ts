@@ -34,7 +34,7 @@ export const runDailyNewArtistDigest = async (): Promise<void> => {
       console.log('No users to notify');
       // Still mark as processed
       await ArtistChange.updateMany(
-        { changeType: 'new_artist', processed: false },
+        { _id: { $in: newArtistChanges.map(change => change._id) } },
         { $set: { processed: true, processedAt: new Date() } }
       );
       return;
@@ -68,7 +68,7 @@ export const runDailyNewArtistDigest = async (): Promise<void> => {
 
     // 5. Mark new_artist changes as processed
     const updateResult = await ArtistChange.updateMany(
-      { changeType: 'new_artist', processed: false },
+      { _id: { $in: newArtistChanges.map(change => change._id) } },
       { $set: { processed: true, processedAt: new Date() } }
     );
 

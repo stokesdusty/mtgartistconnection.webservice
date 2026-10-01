@@ -9,7 +9,7 @@ const ArtistChangeSchema = new Schema({
   changeType: {
     type: String,
     required: true,
-    enum: ['update', 'added_to_event', 'news_article'],
+    enum: ['update', 'added_to_event', 'news_article', 'new_artist'],
   },
   timestamp: {
     type: Date,

@@ -17,7 +17,7 @@ import { runDailyEventDigest } from './jobs/dailyEventDigest';
 import { runScryfallArtistSync } from './jobs/scryfallArtistSync';
 import { runDailyNewArtistDigest } from './jobs/dailyNewArtistDigest';
 import { runMountainMageSync } from './jobs/mountainMageSync';
-import { runMarksSignatureSync } from './jobs/marksSignatureSync';
+// import { runMarksSignatureSync } from './jobs/marksSignatureSync'; // cron disabled below
 import sitemapRouter from './routes/sitemap';
 import publicArtistRouter from './routes/publicArtist';
 import publicArtistsRouter from './routes/publicArtists';
@@ -157,16 +157,17 @@ connectToDatabase()
         });
         console.log('Mountain Mage sync cron job scheduled for 5 AM UTC daily');
 
-        // Run Mark's Signature Service sync daily at 10 AM Pacific (DST-aware)
-        cron.schedule('0 10 * * *', async () => {
-            console.log("Triggering Mark's Signature Service sync job...");
-            try {
-                await runMarksSignatureSync();
-            } catch (error) {
-                console.error("Mark's Signature Service sync job failed:", error);
-            }
-        }, { timezone: 'America/Los_Angeles' });
-        console.log("Mark's Signature Service sync cron job scheduled for 10 AM Pacific daily");
+        // Disabled until the job can isolate upcoming artists from Mark's post
+        // // Run Mark's Signature Service sync daily at 10 AM Pacific (DST-aware)
+        // cron.schedule('0 10 * * *', async () => {
+        //     console.log("Triggering Mark's Signature Service sync job...");
+        //     try {
+        //         await runMarksSignatureSync();
+        //     } catch (error) {
+        //         console.error("Mark's Signature Service sync job failed:", error);
+        //     }
+        // }, { timezone: 'America/Los_Angeles' });
+        // console.log("Mark's Signature Service sync cron job scheduled for 10 AM Pacific daily");
 
 
         return app.listen(process.env.PORT,
