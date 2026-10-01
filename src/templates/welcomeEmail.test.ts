@@ -1,9 +1,5 @@
 import { generateWelcomeEmail } from './welcomeEmail';
 
-afterEach(() => {
-  delete process.env.FRONTEND_URL;
-});
-
 describe('generateWelcomeEmail', () => {
   it('returns a string', () => {
     expect(typeof generateWelcomeEmail()).toBe('string');
@@ -24,13 +20,8 @@ describe('generateWelcomeEmail', () => {
     expect(generateWelcomeEmail()).toContain('Browse Artists');
   });
 
-  it('uses FRONTEND_URL env variable when set', () => {
-    process.env.FRONTEND_URL = 'https://staging.example.com';
-    expect(generateWelcomeEmail()).toContain('https://staging.example.com');
-  });
-
-  it('falls back to the production URL when FRONTEND_URL is not set', () => {
-    expect(generateWelcomeEmail()).toContain('mtgartistconnection.com');
+  it('links to the www production site', () => {
+    expect(generateWelcomeEmail()).toContain('https://www.mtgartistconnection.com');
   });
 
   it('mentions following artists', () => {

@@ -1,9 +1,5 @@
 import { generateNewArtistDigestEmail } from './newArtistDigestEmail';
 
-afterEach(() => {
-  delete process.env.FRONTEND_URL;
-});
-
 describe('generateNewArtistDigestEmail', () => {
   it('returns a valid HTML document', () => {
     const html = generateNewArtistDigestEmail(['Alice']);
@@ -39,14 +35,8 @@ describe('generateNewArtistDigestEmail', () => {
     expect(generateNewArtistDigestEmail(['Alice'])).toContain('Manage email preferences');
   });
 
-  it('uses FRONTEND_URL env variable for links when set', () => {
-    process.env.FRONTEND_URL = 'https://staging.example.com';
-    const html = generateNewArtistDigestEmail(['Alice']);
-    expect(html).toContain('https://staging.example.com');
-  });
-
-  it('falls back to the production URL when FRONTEND_URL is not set', () => {
-    expect(generateNewArtistDigestEmail(['Alice'])).toContain('mtgartistconnection.com');
+  it('links to the www production site', () => {
+    expect(generateNewArtistDigestEmail(['Alice'])).toContain('https://www.mtgartistconnection.com/artist/Alice');
   });
 
   it('handles an empty artist list without throwing', () => {

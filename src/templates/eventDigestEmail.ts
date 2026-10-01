@@ -1,3 +1,5 @@
+import { SITE_URL } from './siteUrl';
+
 export interface EventData {
   eventName: string;
   city: string;
@@ -108,7 +110,7 @@ export const generateEventDigestEmail = (events: EventData[]): string => {
             </p>
             <p style="margin: 8px 0; color: #666; font-size: 14px;">
               Manage your monitored locations at
-              <a href="${process.env.FRONTEND_URL}/following" style="color: #507A60; text-decoration: none;">
+              <a href="${SITE_URL}/following" style="color: #507A60; text-decoration: none;">
                 MTG Artist Connection
               </a>
             </p>

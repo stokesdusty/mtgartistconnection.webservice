@@ -1,3 +1,5 @@
+import { SITE_URL } from './siteUrl';
+
 interface ArtistChangeData {
   artistName: string;
   changes: any[]; // ArtistChange documents
@@ -27,8 +29,6 @@ const fieldNameMap: Record<string, string> = {
 };
 
 export const generateDigestEmail = (artistChanges: ArtistChangeData[]): string => {
-  const baseUrl = process.env.FRONTEND_URL || 'https://www.mtgartistconnection.com';
-
   const artistSections = artistChanges.map(({ artistName, changes }) => {
     // Group by change type
     const updates = changes.filter(c => c.changeType === 'update');
@@ -55,7 +55,7 @@ export const generateDigestEmail = (artistChanges: ArtistChangeData[]): string =
         `;
       });
       section += `
-          <a href="${baseUrl}/news/artist/${encodeURIComponent(artistName)}"
+          <a href="${SITE_URL}/news/artist/${encodeURIComponent(artistName)}"
              style="color: #507A60; text-decoration: none; font-weight: 600; font-size: 14px;">
             Read full article${newsArticles.length > 1 ? 's' : ''} →
           </a>
@@ -104,7 +104,7 @@ export const generateDigestEmail = (artistChanges: ArtistChangeData[]): string =
 
     section += `
         <p style="margin-top: 15px;">
-          <a href="${baseUrl}/artist/${encodeURIComponent(artistName)}"
+          <a href="${SITE_URL}/artist/${encodeURIComponent(artistName)}"
              style="color: #507A60; text-decoration: none; font-weight: 600;">
             View ${artistName}'s Profile →
           </a>
@@ -136,11 +136,11 @@ export const generateDigestEmail = (artistChanges: ArtistChangeData[]): string =
 
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 14px; color: #666;">
           <p>
-            <a href="${baseUrl}/settings"
+            <a href="${SITE_URL}/settings"
                style="color: #507A60; text-decoration: none; font-weight: 600;">
               Manage email preferences
             </a> |
-            <a href="${baseUrl}/settings"
+            <a href="${SITE_URL}/settings"
                style="color: #507A60; text-decoration: none; font-weight: 600;">
               Unfollow artists
             </a>
@@ -149,7 +149,7 @@ export const generateDigestEmail = (artistChanges: ArtistChangeData[]): string =
             You're receiving this email because you follow these artists and have artist update emails enabled.
           </p>
           <p style="margin-top: 10px;">
-            <a href="${baseUrl}"
+            <a href="${SITE_URL}"
                style="color: #507A60; text-decoration: none; font-weight: 600;">
               Visit MTG Artist Connection
             </a>

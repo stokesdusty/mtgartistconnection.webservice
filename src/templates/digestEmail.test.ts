@@ -19,10 +19,6 @@ const baseNewsArticle = {
   newsArticleSummary: 'A summary of the article.',
 };
 
-afterEach(() => {
-  delete process.env.FRONTEND_URL;
-});
-
 describe('generateDigestEmail', () => {
   it('returns a valid HTML document', () => {
     const html = generateDigestEmail([{ artistName: 'Alice', changes: [] }]);
@@ -115,15 +111,9 @@ describe('generateDigestEmail', () => {
     expect(html).toContain('Bob');
   });
 
-  it('uses FRONTEND_URL env variable for links when set', () => {
-    process.env.FRONTEND_URL = 'https://staging.example.com';
+  it('links to the www production site', () => {
     const html = generateDigestEmail([{ artistName: 'Alice', changes: [] }]);
-    expect(html).toContain('https://staging.example.com');
-  });
-
-  it('falls back to the production URL when FRONTEND_URL is not set', () => {
-    const html = generateDigestEmail([{ artistName: 'Alice', changes: [] }]);
-    expect(html).toContain('mtgartistconnection.com');
+    expect(html).toContain('https://www.mtgartistconnection.com/artist/Alice');
   });
 
   it('includes a link to manage email preferences', () => {

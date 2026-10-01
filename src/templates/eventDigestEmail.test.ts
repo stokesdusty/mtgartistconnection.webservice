@@ -9,10 +9,6 @@ const baseEvent: EventData = {
   url: 'https://example.com/event',
 };
 
-afterEach(() => {
-  delete process.env.FRONTEND_URL;
-});
-
 describe('generateEventDigestEmail', () => {
   it('returns a valid HTML document', () => {
     const html = generateEventDigestEmail([baseEvent]);
@@ -124,9 +120,8 @@ describe('generateEventDigestEmail', () => {
     expect(html).toContain(String(new Date().getFullYear()));
   });
 
-  it('links to FRONTEND_URL for managing monitored locations', () => {
-    process.env.FRONTEND_URL = 'https://staging.example.com';
+  it('links to the www production site for managing monitored locations', () => {
     const html = generateEventDigestEmail([baseEvent]);
-    expect(html).toContain('https://staging.example.com');
+    expect(html).toContain('https://www.mtgartistconnection.com/following');
   });
 });

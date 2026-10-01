@@ -1,7 +1,9 @@
+import { SITE_URL } from './siteUrl';
+
 export const generateNewArtistDigestEmail = (artistNames: string[]): string => {
   const artistList = artistNames.map(name => `
       <li style="margin-bottom: 10px; padding: 12px 15px; background-color: #f8f9fa; border-radius: 6px; border-left: 4px solid #507A60;">
-        <a href="${process.env.FRONTEND_URL || 'https://mtgartistconnection.com'}/artist/${encodeURIComponent(name)}"
+        <a href="${SITE_URL}/artist/${encodeURIComponent(name)}"
            style="color: #507A60; text-decoration: none; font-weight: 600; font-size: 16px;">
           ${name}
         </a>
@@ -34,7 +36,7 @@ export const generateNewArtistDigestEmail = (artistNames: string[]): string => {
         </ul>
 
         <div style="text-align: center; margin: 25px 0;">
-          <a href="${process.env.FRONTEND_URL || 'https://mtgartistconnection.com'}/artists"
+          <a href="${SITE_URL}/artists"
              style="display: inline-block; background-color: #507A60; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">
             Browse All Artists
           </a>
@@ -42,7 +44,7 @@ export const generateNewArtistDigestEmail = (artistNames: string[]): string => {
 
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 14px; color: #666;">
           <p>
-            <a href="${process.env.FRONTEND_URL || 'https://mtgartistconnection.com'}/settings"
+            <a href="${SITE_URL}/settings"
                style="color: #507A60; text-decoration: none; font-weight: 600;">
               Manage email preferences
             </a>
@@ -51,7 +53,7 @@ export const generateNewArtistDigestEmail = (artistNames: string[]): string => {
             You're receiving this email because you have new artist notifications enabled.
           </p>
           <p style="margin-top: 10px;">
-            <a href="${process.env.FRONTEND_URL || 'https://mtgartistconnection.com'}"
+            <a href="${SITE_URL}"
                style="color: #507A60; text-decoration: none; font-weight: 600;">
               Visit MTG Artist Connection
             </a>

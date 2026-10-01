@@ -1,6 +1,6 @@
-export const generateWelcomeEmail = (): string => {
-  const frontendUrl = process.env.FRONTEND_URL || 'https://mtgartistconnection.com';
+import { SITE_URL } from './siteUrl';
 
+export const generateWelcomeEmail = (): string => {
   return `
     <!DOCTYPE html>
     <html>
@@ -39,7 +39,7 @@ export const generateWelcomeEmail = (): string => {
         </div>
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${frontendUrl}/"
+          <a href="${SITE_URL}/"
              style="display: inline-block; background-color: #507A60; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 16px;">
             Browse Artists
           </a>
@@ -50,7 +50,7 @@ export const generateWelcomeEmail = (): string => {
             We will only use your email to contact you for updates on artists that you follow or if events are created or updated in a state that you are following.
           </p>
           <p style="margin-top: 10px;">
-            <a href="${frontendUrl}"
+            <a href="${SITE_URL}"
                style="color: #507A60; text-decoration: none; font-weight: 600;">
               Visit MTG Artist Connection
             </a>
