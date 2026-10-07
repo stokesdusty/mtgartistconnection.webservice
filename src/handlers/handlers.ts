@@ -9,6 +9,7 @@ import { hashSync, compareSync } from "bcryptjs";
 import MapArtistToEvent from "../models/MapArtistToEvent";
 import CardPrice from "../models/CardPrice";
 import CardKingdomPrice from "../models/CardKingdomPrice";
+import SetArtists from "../models/SetArtists";
 import ArtistChange from "../models/ArtistChange";
 import EventChange from "../models/EventChange";
 import ArtistPost from "../models/ArtistPost";
@@ -25,6 +26,7 @@ import { cacheGet, cacheSet, invalidateArtistCache } from "../utils/artistCache"
 import { escapeRegex } from "../utils/regex";
 import { renderPageText } from "../services/urlScanService";
 import { findArtistMatches } from "../services/artistNameMatcher";
+import { matchSetArtists } from "../services/setArtists";
 
 const UPDATABLE_ARTIST_FIELDS = new Set([
     "name",
@@ -249,6 +251,22 @@ const RootQuery = new GraphQLObjectType({
             args: { eventIds: { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLString))) }},
             async resolve(parent, { eventIds }) {
                 return await MapArtistToEvent.find({ eventId: { $in: eventIds } }).sort({artistName: 1}).exec();
+            },
+        },
+        // Our artists credited in a set, for the homepage "Set" filter.
+        // null = the set hasn't been indexed yet (see jobs/setArtistSync.ts).
+        artistsBySet: {
+            type: GraphQLList(GraphQLNonNull(GraphQLString)),
+            args: { code: { type: GraphQLNonNull(GraphQLString) }},
+            async resolve(parent, { code }) {
+                const set = await SetArtists.findOne({ code: code.toLowerCase() }, { scryfall_artists: 1 }).lean();
+                if (!set) return null;
+                let dbArtists = cacheGet<{ name: string; scryfall_name?: string }[]>('artistScryfallNames');
+                if (!dbArtists) {
+                    dbArtists = await Artist.find().select('name scryfall_name').lean();
+                    cacheSet('artistScryfallNames', dbArtists);
+                }
+                return matchSetArtists(set.scryfall_artists, dbArtists);
             },
         },
         cardPricesByCards: {

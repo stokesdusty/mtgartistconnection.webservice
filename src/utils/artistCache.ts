@@ -1,4 +1,4 @@
-type Key = 'artistFilterFlags' | 'artistNames' | `artistsPage:${number}:${number}`;
+type Key = 'artistFilterFlags' | 'artistNames' | 'artistScryfallNames' | `artistsPage:${number}:${number}`;
 
 interface Entry<T> { value: T; expiresAt: number; }
 

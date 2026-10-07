@@ -15,6 +15,8 @@ import { graphqlAuthRateLimiter } from './middleware/rateLimiter';
 import { runDailyDigest } from './jobs/dailyDigest';
 import { runDailyEventDigest } from './jobs/dailyEventDigest';
 import { runScryfallArtistSync } from './jobs/scryfallArtistSync';
+import { runSetArtistSync } from './jobs/setArtistSync';
+import SetArtists from './models/SetArtists';
 import { runDailyNewArtistDigest } from './jobs/dailyNewArtistDigest';
 import { runMountainMageSync } from './jobs/mountainMageSync';
 // import { runMarksSignatureSync } from './jobs/marksSignatureSync'; // cron disabled below
@@ -132,8 +134,19 @@ connectToDatabase()
             } catch (error) {
                 console.error('Scryfall artist sync job failed:', error);
             }
+            // Refresh the set → artists index for the homepage "Set" filter
+            try {
+                await runSetArtistSync();
+            } catch (error) {
+                console.error('Set artist sync job failed:', error);
+            }
         });
-        console.log('Scryfall artist sync cron job scheduled for 4 PM PST daily');
+        console.log('Scryfall artist sync + set artist sync cron job scheduled for 4 PM PST daily');
+
+        // First deploy: build the set index now instead of waiting for midnight.
+        SetArtists.estimatedDocumentCount()
+            .then(count => (count === 0 ? runSetArtistSync() : undefined))
+            .catch(error => console.error('Initial set artist sync failed:', error));
 
         // Run new artist digest daily at 8 PM (20:00) in server timezone
         cron.schedule('0 20 * * *', async () => {
