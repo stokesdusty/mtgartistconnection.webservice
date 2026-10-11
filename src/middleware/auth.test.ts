@@ -84,6 +84,11 @@ describe('generateRefreshToken + verifyRefreshToken', () => {
     expect(decoded.role).toBe('user');
   });
 
+  it('round-trips tokenVersion, defaulting to 0', () => {
+    expect(verifyRefreshToken(generateRefreshToken('user-42', 'user', 3)).tokenVersion).toBe(3);
+    expect(verifyRefreshToken(generateRefreshToken('user-42', 'user')).tokenVersion).toBe(0);
+  });
+
   it('verifyRefreshToken throws on a token signed with the wrong secret', () => {
     const badToken = jwt.sign({ userId: 'x', role: 'user' }, 'wrong-secret');
     expect(() => verifyRefreshToken(badToken)).toThrow();

@@ -13,6 +13,7 @@ export interface IUser {
     };
     followedArtists: string[];
     monitoredStates: string[];
+    tokenVersion: number;
 }
 
 const userSchema = new Schema<IUser>({
@@ -35,6 +36,11 @@ const userSchema = new Schema<IUser>({
         enum: ['user', 'admin'],
         default: 'user',
         required: true,
+    },
+    // Incremented to revoke all outstanding refresh tokens for this user
+    tokenVersion: {
+        type: Number,
+        default: 0,
     },
     emailPreferences: {
         siteUpdates: {

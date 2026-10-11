@@ -29,11 +29,23 @@ config();
 
 const app = express();
 
+// Railway terminates requests at one proxy hop; trust it so req.ip (used by
+// the rate limiters) is the real client IP rather than the proxy's.
+app.set('trust proxy', 1);
+
 app.use(compression());
 
-// Increase body size limit for base64 image uploads (10MB)
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// Auth only reads the Authorization header, so it can run before body parsing
+// and let the parser pick a size limit by role.
+app.use(authMiddleware);
+
+// Admins get a 10MB limit for base64 image uploads; everyone else gets 1MB.
+const adminJsonParser = express.json({ limit: '10mb' });
+const defaultJsonParser = express.json({ limit: '1mb' });
+app.use((req, res, next) =>
+    ((req as any).userRole === 'admin' ? adminJsonParser : defaultJsonParser)(req, res, next)
+);
+app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
 // Configure CORS with whitelist of allowed origins
 const allowedOrigins = process.env.CORS_ORIGIN 
@@ -83,7 +95,6 @@ Preferred-Languages: en
     );
 });
 
-app.use(authMiddleware);
 app.use("/graphql", graphqlHTTP((req) => ({
     schema: schema,
     graphiql: process.env.NODE_ENV !== 'production', // Only enable in development

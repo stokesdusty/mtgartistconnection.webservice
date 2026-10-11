@@ -35,24 +35,28 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
   }
 };
 
+// Access tokens are short-lived so role changes and revoked sessions take
+// effect quickly; the client silently renews them with the refresh token.
 export const generateToken = (userId: string, role: string): string => {
   return jwt.sign(
     { userId, role },
     process.env.JWT_SECRET!,
-    { expiresIn: '7d' }
+    { expiresIn: '1h' }
   );
 };
 
-export const generateRefreshToken = (userId: string, role: string): string => {
+// tokenVersion mirrors User.tokenVersion; bumping it on the user (e.g. on
+// password change) invalidates every refresh token issued before that.
+export const generateRefreshToken = (userId: string, role: string, tokenVersion = 0): string => {
   return jwt.sign(
-    { userId, role },
+    { userId, role, tokenVersion },
     process.env.REFRESH_TOKEN_SECRET!,
     { expiresIn: '30d' }
   );
 };
 
-export const verifyRefreshToken = (token: string): { userId: string; role: string } => {
-  return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET!) as { userId: string; role: string };
+export const verifyRefreshToken = (token: string): { userId: string; role: string; tokenVersion?: number } => {
+  return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET!) as { userId: string; role: string; tokenVersion?: number };
 };
 
 export const requireAuth = (isAuthenticated?: boolean) => {

@@ -13,6 +13,13 @@ const s3Client = new S3Client({
   },
 });
 
+const ALLOWED_IMAGE_TYPES: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
 export interface UploadResponse {
   imageUrl: string;
   key: string;
@@ -27,12 +34,19 @@ export const uploadImageFromBase64 = async (
   filename: string,
   contentType: string
 ): Promise<UploadResponse> => {
+  // Only raster images: anything else (e.g. text/html, image/svg+xml) served
+  // from the CDN could run script in a visitor's browser.
+  const extension = ALLOWED_IMAGE_TYPES[contentType];
+  if (!extension) {
+    throw new Error("Unsupported image type. Use PNG, JPEG, WebP or GIF.");
+  }
+
   // Remove data URL prefix if present (e.g., "data:image/png;base64,")
   const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, "");
   const buffer = Buffer.from(base64Content, "base64");
 
-  // Generate a unique key for the image
-  const extension = filename.split(".").pop() || "jpg";
+  // Generate a unique key for the image; the extension comes from the
+  // validated content type, never from the client-supplied filename
   const key = `news-images/${uuidv4()}.${extension}`;
 
   const command = new PutObjectCommand({

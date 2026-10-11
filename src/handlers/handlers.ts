@@ -1,5 +1,5 @@
 import { GraphQLBoolean, GraphQLFloat, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, RefreshTokenResponseType, CardPriceType, CardKingdomPriceType, ClickStatType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PresignedUrlType, ScanUrlResultType, SigningBatchType, SigningEventType, TimeseriesPointType, TopArtistClickType, UserCardCollectionItemType, UserType } from "../schema/schema";
+import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, RefreshTokenResponseType, CardPriceType, CardKingdomPriceType, ClickStatType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PasswordUpdateResponseType, PresignedUrlType, ScanUrlResultType, SigningBatchType, SigningEventType, TimeseriesPointType, TopArtistClickType, UserCardCollectionItemType, UserType } from "../schema/schema";
 import Artist, { IArtist } from "../models/Artist";
 import { Document, HydratedDocument, startSession } from "mongoose";
 import User, { IUser } from "../models/User";
@@ -54,6 +54,17 @@ const UPDATABLE_ARTIST_FIELDS = new Set([
 ]);
 
 type DocumentType = Document<any, any, any>;
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// bcrypt only uses the first 72 bytes of a password
+const PASSWORD_MIN_LENGTH = 6;
+const PASSWORD_MAX_LENGTH = 72;
+
+const validatePassword = (password: string): string | null => {
+    if (password.length < PASSWORD_MIN_LENGTH) return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
+    if (Buffer.byteLength(password, 'utf8') > PASSWORD_MAX_LENGTH) return `Password must be at most ${PASSWORD_MAX_LENGTH} characters`;
+    return null;
+};
 
 const CardLookupInput = new GraphQLInputObjectType({
     name: "CardLookupInput",
@@ -668,6 +679,11 @@ const mutations = new GraphQLObjectType({
                 password: { type: GraphQLNonNull(GraphQLString) },
             },
             async resolve(parent, {name, email, password}) {
+                if (!name.trim() || name.length > 100) throw new Error("Please enter a valid name");
+                if (!EMAIL_REGEX.test(email) || email.length > 254) throw new Error("Please enter a valid email address");
+                const passwordError = validatePassword(password);
+                if (passwordError) throw new Error(passwordError);
+
                 let existingUser: HydratedDocument<IUser> | null;
                 try {
                     existingUser = await User.findOne({ email });
@@ -713,7 +729,7 @@ const mutations = new GraphQLObjectType({
 
                     // Generate JWT token with user role
                     const token = generateToken(existingUser._id.toString(), existingUser.role);
-                    const refreshToken = generateRefreshToken(existingUser._id.toString(), existingUser.role);
+                    const refreshToken = generateRefreshToken(existingUser._id.toString(), existingUser.role, existingUser.tokenVersion ?? 0);
 
                     return {
                         token,
@@ -733,7 +749,13 @@ const mutations = new GraphQLObjectType({
             async resolve(parent, { refreshToken }) {
                 try {
                     const decoded = verifyRefreshToken(refreshToken);
-                    const token = generateToken(decoded.userId, decoded.role);
+                    // Re-read the user so deleted accounts, role changes and
+                    // revoked sessions (tokenVersion bump) take effect here.
+                    const user = await User.findById(decoded.userId).select('role tokenVersion');
+                    if (!user || (decoded.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+                        throw new Error("Refresh token revoked");
+                    }
+                    const token = generateToken(user._id.toString(), user.role);
                     return { token };
                 } catch (err) {
                     throw new Error("Invalid or expired refresh token. Please log in again.");
@@ -1099,7 +1121,7 @@ const mutations = new GraphQLObjectType({
         },
         // update password
         updatePassword: {
-            type: MutationResponseType,
+            type: PasswordUpdateResponseType,
             args: {
                 currentPassword: { type: GraphQLNonNull(GraphQLString) },
                 newPassword: { type: GraphQLNonNull(GraphQLString) },
@@ -1126,14 +1148,27 @@ const mutations = new GraphQLObjectType({
                         };
                     }
 
-                    // Hash and update new password
+                    const passwordError = validatePassword(newPassword);
+                    if (passwordError) {
+                        return {
+                            success: false,
+                            message: passwordError
+                        };
+                    }
+
+                    // Hash and update new password, and revoke every existing
+                    // session by bumping tokenVersion
                     const encryptedPassword = hashSync(newPassword);
                     user.password = encryptedPassword;
+                    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
                     await user.save();
 
+                    // Issue fresh tokens so the caller's own session survives
                     return {
                         success: true,
-                        message: "Password updated successfully"
+                        message: "Password updated successfully",
+                        token: generateToken(user._id.toString(), user.role),
+                        refreshToken: generateRefreshToken(user._id.toString(), user.role, user.tokenVersion)
                     };
                 } catch (err) {
                     return {

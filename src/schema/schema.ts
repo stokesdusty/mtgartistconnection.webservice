@@ -68,6 +68,18 @@ export const RefreshTokenResponseType = new GraphQLObjectType({
     }),
 });
 
+// Password changes revoke existing refresh tokens, so the caller's session
+// gets fresh tokens back to stay logged in.
+export const PasswordUpdateResponseType = new GraphQLObjectType({
+    name: "PasswordUpdateResponseType",
+    fields: () => ({
+        success: { type: GraphQLNonNull(GraphQLBoolean) },
+        message: { type: GraphQLString },
+        token: { type: GraphQLString },
+        refreshToken: { type: GraphQLString },
+    }),
+});
+
 export const SigningEventType = new GraphQLObjectType({
     name: "SigningEventType",
     fields: () => ({
