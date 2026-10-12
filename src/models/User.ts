@@ -1,4 +1,4 @@
-import { Schema, model } from "mongoose";
+import { Schema, Types, model } from "mongoose";
 
 export interface IUser {
     name: string;
@@ -14,6 +14,8 @@ export interface IUser {
     followedArtists: string[];
     monitoredStates: string[];
     tokenVersion: number;
+    isVerifiedArtist: boolean;
+    artistId?: Types.ObjectId;
 }
 
 const userSchema = new Schema<IUser>({
@@ -69,7 +71,26 @@ const userSchema = new Schema<IUser>({
         type: [String],
         default: [],
         index: true,
-    }
+    },
+    // Set by hand in the database by an admin once they've confirmed the
+    // account belongs to the artist. Access checks require both fields.
+    isVerifiedArtist: {
+        type: Boolean,
+        default: false,
+    },
+    // _id of the Artist document this account manages. Must be stored as an
+    // ObjectId (not a string) so the unique index below applies.
+    artistId: {
+        type: Schema.Types.ObjectId,
+        ref: "Artist",
+    },
 });
+
+// One account per artist. Partial so the many users without an artistId
+// don't collide on a missing value.
+userSchema.index(
+    { artistId: 1 },
+    { unique: true, partialFilterExpression: { artistId: { $type: "objectId" } } }
+);
 
 export default model<IUser>("User", userSchema);

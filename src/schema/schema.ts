@@ -1,4 +1,5 @@
 import { GraphQLID, GraphQLObjectType, GraphQLString, GraphQLNonNull, GraphQLScalarType, GraphQLInt, GraphQLFloat, GraphQLBoolean, GraphQLList } from "graphql";
+import User from "../models/User";
 
 export const ArtistType = new GraphQLObjectType({
     name: "ArtistType",
@@ -25,7 +26,14 @@ export const ArtistType = new GraphQLObjectType({
         omalink: { type: GraphQLString },
         inprnt: { type: GraphQLString },
         alternate_names: { type: GraphQLString },
-        scryfall_name: { type: GraphQLString }
+        scryfall_name: { type: GraphQLString },
+        artistNote: { type: GraphQLString },
+        artistNoteUpdatedAt: isoDate('artistNoteUpdatedAt'),
+        // One lookup per artist, so only select it on single-artist queries.
+        isVerified: {
+            type: GraphQLBoolean,
+            resolve: async (artist: any) => !!(await User.exists({ artistId: artist._id, isVerifiedArtist: true })),
+        },
     }),
 });
 
@@ -49,6 +57,8 @@ export const UserType = new GraphQLObjectType({
         emailPreferences: { type: EmailPreferencesType },
         followedArtists: { type: GraphQLList(GraphQLString) },
         monitoredStates: { type: GraphQLList(GraphQLString) },
+        isVerifiedArtist: { type: GraphQLBoolean },
+        artistId: { type: GraphQLID, resolve: (parent) => parent.artistId ? String(parent.artistId) : null },
     }),
 });
 
@@ -429,5 +439,24 @@ export const SigningReportSummaryType = new GraphQLObjectType({
         maxPrice:       { type: GraphQLFloat },
         latestSignedOn: { type: GraphQLString },
         byMethod:       { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(SigningMethodStatType))) },
+    }),
+});
+
+export const ArtistEditChangeType = new GraphQLObjectType({
+    name: "ArtistEditChangeType",
+    fields: () => ({
+        field:  { type: GraphQLNonNull(GraphQLString) },
+        before: { type: GraphQLString },
+        after:  { type: GraphQLString },
+    }),
+});
+
+export const ArtistEditLogType = new GraphQLObjectType({
+    name: "ArtistEditLogType",
+    fields: () => ({
+        id:        { type: GraphQLNonNull(GraphQLID), resolve: (parent) => String(parent._id ?? parent.id) },
+        byAdmin:   { type: GraphQLBoolean },
+        changes:   { type: GraphQLList(ArtistEditChangeType) },
+        createdAt: isoDate('createdAt'),
     }),
 });

@@ -27,6 +27,7 @@ const fieldNameMap: Record<string, string> = {
   markssignatureservice: "Mark's Signature Service",
   omalink: 'OMA Link',
   inprnt: 'INPRNT Link',
+  artistNote: 'Note from the Artist',
 };
 
 // One labelled block inside an artist card ("Profile Updated", "Added to Events", ...).

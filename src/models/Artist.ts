@@ -24,6 +24,8 @@ export interface IArtist {
     scryfall_name?: string;
     alternate_names?: string;
     lastSocialSync?: Date;
+    artistNote?: string;
+    artistNoteUpdatedAt?: Date;
 }
 
 const artistSchema = new Schema<IArtist>({
@@ -96,6 +98,14 @@ const artistSchema = new Schema<IArtist>({
         type: String
     },
     lastSocialSync: {
+        type: Date
+    },
+    // Written by the verified artist from their dashboard; kept apart from
+    // the admin-written signingComment.
+    artistNote: {
+        type: String
+    },
+    artistNoteUpdatedAt: {
         type: Date
     }
 });

@@ -1,5 +1,5 @@
 import { GraphQLBoolean, GraphQLFloat, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, RefreshTokenResponseType, CardPriceType, CardKingdomPriceType, TcgplayerProductType, ClickStatType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, SigningReportSummaryType, SigningReportType, PasswordUpdateResponseType, PresignedUrlType, ScanUrlResultType, SigningBatchType, SigningEventType, TimeseriesPointType, TopArtistClickType, UserCardCollectionItemType, UserType } from "../schema/schema";
+import { ArtistType, ArtistEditLogType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, RefreshTokenResponseType, CardPriceType, CardKingdomPriceType, TcgplayerProductType, ClickStatType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, SigningReportSummaryType, SigningReportType, PasswordUpdateResponseType, PresignedUrlType, ScanUrlResultType, SigningBatchType, SigningEventType, TimeseriesPointType, TopArtistClickType, UserCardCollectionItemType, UserType } from "../schema/schema";
 import Artist, { IArtist } from "../models/Artist";
 import { Document, HydratedDocument, isValidObjectId, startSession } from "mongoose";
 import User, { IUser } from "../models/User";
@@ -19,6 +19,7 @@ import LinkClick from "../models/LinkClick";
 import PriceClick from "../models/PriceClick";
 import PageView from "../models/PageView";
 import SigningReport from "../models/SigningReport";
+import ArtistEditLog from "../models/ArtistEditLog";
 import { generateToken, generateRefreshToken, verifyRefreshToken, requireAuth, requireAdmin } from "../middleware/auth";
 import { sendWelcomeEmail } from "../services/emailService";
 import { generateNewsArticle } from "../services/aiNewsService";
@@ -30,6 +31,7 @@ import { findArtistMatches } from "../services/artistNameMatcher";
 import { matchSetArtists } from "../services/setArtists";
 import { mongoProductStore, resolveTcgplayerProducts } from "../services/tcgplayerProducts";
 import { recordArtistUpdate } from "../services/artistChangeTracker";
+import { ARTIST_EDITABLE_FIELDS, diffArtistProfile, hasArtistAccess, validateArtistProfileUpdate } from "../services/artistProfile";
 import {
     PER_ARTIST_COOLDOWN_DAYS,
     SigningReportSummary,
@@ -176,6 +178,24 @@ const SigningReportInput = new GraphQLInputObjectType({
     },
 });
 
+const ArtistProfileInput = new GraphQLInputObjectType({
+    name: "ArtistProfileInput",
+    fields: Object.fromEntries(ARTIST_EDITABLE_FIELDS.map((field) => [field, { type: GraphQLString }])),
+});
+
+// Admins can open any artist's dashboard; everyone else needs an admin to have
+// set isVerifiedArtist and artistId on their user row. Read from the database
+// on every call so revoking access there takes effect immediately.
+async function requireArtistAccess(context: any, artistId: string) {
+    requireAuth(context.isAuthenticated);
+    if (!isValidObjectId(artistId)) throw new Error("Artist not found.");
+    if (context.userRole === 'admin') return;
+    const user = await User.findById(context.userId).select('isVerifiedArtist artistId').lean();
+    if (!hasArtistAccess(user, artistId)) {
+        throw new Error("You don't have access to this artist's dashboard.");
+    }
+}
+
 // Never shown publicly: who submitted a report, or anything about its review.
 const PRIVATE_REPORT_FIELDS = { userId: 0, status: 0, rejectionReason: 0, reviewedAt: 0, reviewedBy: 0 };
 
@@ -290,6 +310,31 @@ const RootQuery = new GraphQLObjectType({
             args: { id: { type: GraphQLNonNull(GraphQLID)}},
             async resolve(parent, { id }) {
                 return await Artist.findById(id).exec();
+            },
+        },
+        // The artist a verified user manages, or (for admins, or with an id
+        // the user has access to) a specific artist. Null when the user isn't
+        // a verified artist.
+        artistDashboard: {
+            type: ArtistType,
+            args: { artistId: { type: GraphQLID } },
+            async resolve(_parent, { artistId }, context) {
+                requireAuth(context.isAuthenticated);
+                if (artistId) {
+                    await requireArtistAccess(context, artistId);
+                    return await Artist.findById(artistId);
+                }
+                const user = await User.findById(context.userId).select('isVerifiedArtist artistId').lean();
+                if (!user?.isVerifiedArtist || !user.artistId) return null;
+                return await Artist.findById(user.artistId);
+            },
+        },
+        artistEditLog: {
+            type: GraphQLList(ArtistEditLogType),
+            args: { artistId: { type: GraphQLNonNull(GraphQLID) } },
+            async resolve(_parent, { artistId }, context) {
+                await requireArtistAccess(context, artistId);
+                return await ArtistEditLog.find({ artistId }).sort({ createdAt: -1 }).limit(25).lean();
             },
         },
         users: {
@@ -1150,6 +1195,45 @@ const mutations = new GraphQLObjectType({
                 } catch (err) {
                     throw new Error(err.message || "Update artist failed");
                 }
+            },
+        },
+        // Edits from the artist dashboard. Only the fields in
+        // ARTIST_EDITABLE_FIELDS can change here; everything else stays admin-only.
+        updateArtistProfile: {
+            type: ArtistType,
+            args: {
+                artistId: { type: GraphQLNonNull(GraphQLID) },
+                input:    { type: GraphQLNonNull(ArtistProfileInput) },
+            },
+            async resolve(_parent, { artistId, input }, context) {
+                await requireArtistAccess(context, artistId);
+
+                const artist = await Artist.findById(artistId);
+                if (!artist) throw new Error("Artist not found.");
+
+                const changes = diffArtistProfile(artist.toObject(), validateArtistProfileUpdate(input));
+                if (changes.length === 0) return artist;
+
+                const updateData: Record<string, string> = {};
+                for (const { field, after } of changes) updateData[field] = after;
+
+                const updatedArtist = await Artist.findByIdAndUpdate(
+                    artistId,
+                    { $set: { ...updateData, ...('artistNote' in updateData && { artistNoteUpdatedAt: new Date() }) } },
+                    { new: true },
+                );
+
+                invalidateArtistCache();
+                await ArtistEditLog.create({
+                    artistId: artist._id,
+                    artistName: artist.name,
+                    userId: context.userId,
+                    byAdmin: context.userRole === 'admin',
+                    changes,
+                });
+                await recordArtistUpdate(artist.name, artist.toObject(), updateData);
+
+                return updatedArtist;
             },
         },
         // add event
