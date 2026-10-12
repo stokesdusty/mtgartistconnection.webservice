@@ -1,4 +1,5 @@
 import { SITE_URL } from './siteUrl';
+import { badge, chip, monoLabel, palette, renderEmail, subscriberFooter, textLink } from './emailLayout';
 
 export interface EventData {
   eventName: string;
@@ -32,23 +33,17 @@ export const generateEventDigestEmail = (events: EventData[]): string => {
     const artistCount = newArtistsSet.size;
 
     const changeLabel = isArtistAddition && artistCount > 0
-      ? `<span style="display: inline-block; background-color: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-left: 8px;">${artistCount === 1 ? 'NEW ARTIST ADDED' : `${artistCount} NEW ARTISTS ADDED`}</span>`
-      : '';
+      ? badge(artistCount === 1 ? 'NEW ARTIST ADDED' : `${artistCount} NEW ARTISTS ADDED`)
+      : badge('NEW EVENT', 'accent');
 
     const artistsList = event.artists && event.artists.length > 0
       ? `
-        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e0e0e0;">
-          <p style="margin: 0 0 6px 0; color: #2d4a36; font-size: 13px; font-weight: 600;">
-            Artists Attending:
-          </p>
-          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid ${palette.line};">
+          <div style="margin-bottom: 10px;">${monoLabel('Artists Attending')}</div>
+          <div>
             ${event.artists.map(artist => {
               const isNewArtist = newArtistsSet.has(artist);
-              return `
-                <span style="display: inline-block; background-color: ${isNewArtist ? '#fef3c7' : '#f0f9f4'}; border: 1px solid ${isNewArtist ? '#f59e0b' : '#507A60'}; color: ${isNewArtist ? '#92400e' : '#2d4a36'}; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: ${isNewArtist ? '700' : '500'};">
-                  ${artist}${isNewArtist ? ' ✨' : ''}
-                </span>
-              `;
+              return chip(`${artist}${isNewArtist ? ' ✨' : ''}`, isNewArtist ? 'warn' : 'accent', isNewArtist);
             }).join('')}
           </div>
         </div>
@@ -56,21 +51,20 @@ export const generateEventDigestEmail = (events: EventData[]): string => {
       : '';
 
     return `
-      <div style="background-color: #f9f9f9; border-left: 4px solid #507A60; padding: 16px; margin-bottom: 16px; border-radius: 4px;">
-        <h3 style="margin: 0 0 8px 0; color: #2d4a36; font-size: 18px; font-weight: 600;">
-          ${event.eventName} ${changeLabel}
-        </h3>
-        <p style="margin: 4px 0; color: #555; font-size: 14px;">
+      <div style="margin-top: 20px; padding: 20px; background-color: ${palette.surface}; border: 1px solid ${palette.line}; border-radius: 12px;">
+        <div style="margin-bottom: 10px;">${changeLabel}</div>
+        <h2 style="margin: 0 0 10px; font-size: 20px; line-height: 1.25; font-weight: 600; letter-spacing: -0.02em; color: ${palette.fg};">
+          ${event.eventName}
+        </h2>
+        <p style="margin: 2px 0; font-size: 14px; color: ${palette.muted};">
           <strong>Location:</strong> ${event.city}, ${event.state}
         </p>
-        <p style="margin: 4px 0; color: #555; font-size: 14px;">
+        <p style="margin: 2px 0; font-size: 14px; color: ${palette.muted};">
           <strong>Date${event.startDate !== event.endDate ? 's' : ''}:</strong> ${dateRange}
         </p>
         ${event.url ? `
-          <p style="margin: 8px 0 0 0;">
-            <a href="${event.url}" style="color: #507A60; text-decoration: none; font-weight: 500;">
-              View Event Details →
-            </a>
+          <p style="margin: 12px 0 0; font-size: 14px;">
+            ${textLink(event.url, 'View Event Details &rarr;')}
           </p>
         ` : ''}
         ${artistsList}
@@ -78,48 +72,24 @@ export const generateEventDigestEmail = (events: EventData[]): string => {
     `;
   }).join('');
 
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>New Signing Events in Your Area</title>
-      </head>
-      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 32px;">
-          <!-- Header -->
-          <div style="text-align: center; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid #507A60;">
-            <h1 style="margin: 0; color: #2d4a36; font-size: 28px; font-weight: 700;">
-              🎨 New Signing Events!
-            </h1>
-            <p style="margin: 8px 0 0 0; color: #666; font-size: 16px;">
-              New Magic: The Gathering signing events in your monitored locations
-            </p>
-          </div>
+  const eventLabel = `${events.length} event${events.length === 1 ? '' : 's'}`;
 
-          <!-- Events -->
-          <div style="margin-bottom: 32px;">
-            ${eventSections}
-          </div>
-
-          <!-- Footer -->
-          <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e0e0e0; text-align: center;">
-            <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">
-              You're receiving this email because you're monitoring these states for signing events.
-            </p>
-            <p style="margin: 8px 0; color: #666; font-size: 14px;">
-              Manage your monitored locations at
-              <a href="${SITE_URL}/following" style="color: #507A60; text-decoration: none;">
-                MTG Artist Connection
-              </a>
-            </p>
-            <p style="margin: 16px 0 0 0; color: #999; font-size: 12px;">
-              © ${new Date().getFullYear()} MTG Artist Connection. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
+  return renderEmail({
+    title: 'New Signing Events in Your Area',
+    preheader: `Signing updates for ${eventLabel} in the states you monitor.`,
+    eyebrow: `Local signings &middot; ${eventLabel}`,
+    heading: 'Signing events',
+    headingMuted: 'near you.',
+    intro: 'New and updated Magic: The Gathering signing events in the states you monitor.',
+    body: `
+      ${eventSections}
+      <p style="margin: 24px 0 0; text-align: center; font-size: 14px;">
+        ${textLink(`${SITE_URL}/calendar`, 'See the full event calendar &rarr;')}
+      </p>
+    `,
+    footer: subscriberFooter(
+      `You're receiving this email because you're monitoring these states for signing events.`,
+      [[`${SITE_URL}/following`, 'Manage monitored states'], [`${SITE_URL}/settings`, 'Manage email preferences']],
+    ),
+  });
 };

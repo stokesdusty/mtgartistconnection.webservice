@@ -1,4 +1,4 @@
-type Key = 'artistFilterFlags' | 'artistNames' | 'artistScryfallNames' | `artistsPage:${number}:${number}`;
+type Key = 'artistFilterFlags' | 'artistNames' | 'artistScryfallNames' | `artistsPage:${number}:${number}` | `signingSummary:${string}`;
 
 interface Entry<T> { value: T; expiresAt: number; }
 
@@ -15,6 +15,10 @@ export function cacheGet<T>(key: Key): T | undefined {
 
 export function cacheSet<T>(key: Key, value: T, ttlMs: number = ARTIST_CACHE_TTL_MS): void {
     store.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
+export function cacheDelete(key: Key): void {
+    store.delete(key);
 }
 
 export function invalidateArtistCache(): void {

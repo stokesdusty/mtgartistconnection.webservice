@@ -25,10 +25,10 @@ describe('generateWelcomeEmail', () => {
   });
 
   it('mentions following artists', () => {
-    expect(generateWelcomeEmail()).toContain('Follow Artists');
+    expect(generateWelcomeEmail()).toContain('Follow artists');
   });
 
   it('mentions monitoring states', () => {
-    expect(generateWelcomeEmail()).toContain('Monitor States');
+    expect(generateWelcomeEmail()).toContain('Monitor states');
   });
 });

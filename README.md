@@ -79,6 +79,7 @@ Interactive GraphiQL interface available at `http://localhost:8080/graphql`
 | `deleteArtist(id)` | Delete an artist |
 | `signingEvent(name, city, startDate, endDate, url)` | Create a signing event |
 | `mapArtistToEvent(artistName, eventId)` | Add an artist to an event |
+| `removeArtistFromEvent(artistName, eventId)` | Remove an artist from an event |
 
 ## Data Models
 

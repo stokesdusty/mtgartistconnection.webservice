@@ -1,7 +1,7 @@
 import { GraphQLBoolean, GraphQLFloat, GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString } from "graphql";
-import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, RefreshTokenResponseType, CardPriceType, CardKingdomPriceType, ClickStatType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, PasswordUpdateResponseType, PresignedUrlType, ScanUrlResultType, SigningBatchType, SigningEventType, TimeseriesPointType, TopArtistClickType, UserCardCollectionItemType, UserType } from "../schema/schema";
+import { ArtistType, ArtistFlagsType, ArtistPageType, ArtistPostType, AuthResponseType, RefreshTokenResponseType, CardPriceType, CardKingdomPriceType, TcgplayerProductType, ClickStatType, EmailPreferencesType, MapArtistToEventType, MutationResponseType, NewsReviewType, SigningReportSummaryType, SigningReportType, PasswordUpdateResponseType, PresignedUrlType, ScanUrlResultType, SigningBatchType, SigningEventType, TimeseriesPointType, TopArtistClickType, UserCardCollectionItemType, UserType } from "../schema/schema";
 import Artist, { IArtist } from "../models/Artist";
-import { Document, HydratedDocument, startSession } from "mongoose";
+import { Document, HydratedDocument, isValidObjectId, startSession } from "mongoose";
 import User, { IUser } from "../models/User";
 import UserCardCollection from "../models/UserCardCollection";
 import SigningEvent from "../models/SigningEvent";
@@ -18,15 +18,27 @@ import SigningBatch from "../models/SigningBatch";
 import LinkClick from "../models/LinkClick";
 import PriceClick from "../models/PriceClick";
 import PageView from "../models/PageView";
+import SigningReport from "../models/SigningReport";
 import { generateToken, generateRefreshToken, verifyRefreshToken, requireAuth, requireAdmin } from "../middleware/auth";
 import { sendWelcomeEmail } from "../services/emailService";
 import { generateNewsArticle } from "../services/aiNewsService";
 import { uploadImageFromBase64 } from "../services/s3UploadService";
-import { cacheGet, cacheSet, invalidateArtistCache } from "../utils/artistCache";
+import { cacheDelete, cacheGet, cacheSet, invalidateArtistCache } from "../utils/artistCache";
 import { escapeRegex } from "../utils/regex";
 import { renderPageText } from "../services/urlScanService";
 import { findArtistMatches } from "../services/artistNameMatcher";
 import { matchSetArtists } from "../services/setArtists";
+import { mongoProductStore, resolveTcgplayerProducts } from "../services/tcgplayerProducts";
+import { recordArtistUpdate } from "../services/artistChangeTracker";
+import {
+    PER_ARTIST_COOLDOWN_DAYS,
+    SigningReportSummary,
+    needsReview,
+    rateLimitMessage,
+    summarizeReports,
+    summaryWindowStart,
+    validateSigningReport,
+} from "../services/signingReports";
 
 const UPDATABLE_ARTIST_FIELDS = new Set([
     "name",
@@ -139,6 +151,55 @@ const PACIFIC_DAY_GROUP_ID = {
     month: { $month: { date: '$timestamp', timezone: 'America/Los_Angeles' } },
     day:   { $dayOfMonth: { date: '$timestamp', timezone: 'America/Los_Angeles' } },
 };
+
+const SigningReportExtraInput = new GraphQLInputObjectType({
+    name: "SigningReportExtraInput",
+    fields: {
+        kind:  { type: GraphQLNonNull(GraphQLString) },
+        price: { type: GraphQLNonNull(GraphQLFloat) },
+    },
+});
+
+const SigningReportInput = new GraphQLInputObjectType({
+    name: "SigningReportInput",
+    fields: {
+        signedOn:        { type: GraphQLNonNull(GraphQLString) },
+        method:          { type: GraphQLNonNull(GraphQLString) },
+        pricePerSig:     { type: GraphQLNonNull(GraphQLFloat) },
+        freeCount:       { type: GraphQLInt },
+        perPersonLimit:  { type: GraphQLInt },
+        extras:          { type: GraphQLList(GraphQLNonNull(SigningReportExtraInput)) },
+        turnaroundWeeks: { type: GraphQLInt },
+        eventId:         { type: GraphQLID },
+        serviceName:     { type: GraphQLString },
+        note:            { type: GraphQLString },
+    },
+});
+
+// Never shown publicly: who submitted a report, or anything about its review.
+const PRIVATE_REPORT_FIELDS = { userId: 0, status: 0, rejectionReason: 0, reviewedAt: 0, reviewedBy: 0 };
+
+const signingSummaryKey = (artistName: string): `signingSummary:${string}` => `signingSummary:${artistName.toLowerCase()}`;
+
+async function loadSigningSummary(artistName: string): Promise<SigningReportSummary> {
+    const key = signingSummaryKey(artistName);
+    const cached = cacheGet<SigningReportSummary>(key);
+    if (cached) return cached;
+    const reports = await SigningReport.find(
+        { artistName, status: 'approved', signedOn: { $gte: summaryWindowStart() } },
+        { signedOn: 1, method: 1, pricePerSig: 1 },
+    ).lean();
+    const summary = summarizeReports(reports);
+    cacheSet(key, summary);
+    return summary;
+}
+
+// Reports are keyed by artist name, so follow the artist when it's renamed.
+async function renameSigningReports(oldName: string, newName?: string) {
+    if (!newName || newName === oldName) return;
+    await SigningReport.updateMany({ artistName: oldName }, { $set: { artistName: newName } });
+    cacheDelete(signingSummaryKey(oldName));
+}
 
 const RootQuery = new GraphQLObjectType({
     name: "RootQuery",
@@ -336,6 +397,21 @@ const RootQuery = new GraphQLObjectType({
                 return await CardKingdomPrice.find(query).exec();
             },
         },
+        tcgplayerProducts: {
+            type: GraphQLNonNull(GraphQLList(GraphQLNonNull(TcgplayerProductType))),
+            args: {
+                ids: { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLInt))) },
+            },
+            async resolve(_parent, { ids }) {
+                // Best-effort: Mass Entry falls back to Scryfall naming for anything missing.
+                try {
+                    return await resolveTcgplayerProducts(ids, mongoProductStore);
+                } catch (err) {
+                    console.error('Error resolving TCGplayer products:', err);
+                    return [];
+                }
+            },
+        },
         signingBatches: {
             type: GraphQLList(SigningBatchType),
             async resolve(parent, args, context) {
@@ -471,6 +547,15 @@ const RootQuery = new GraphQLObjectType({
                         { $sort: { count: -1 } },
                     ]);
                     return rows.map((r: any) => ({ key: r._id, count: r.count }));
+                }
+
+                if (groupBy === 'placement') {
+                    const rows = await PriceClick.aggregate([
+                        { $match: matchStage },
+                        { $group: { _id: { placement: { $ifNull: ['$placement', 'allcards'] }, platform: '$platform' }, count: { $sum: 1 } } },
+                        { $sort: { count: -1 } },
+                    ]);
+                    return rows.map((r: any) => ({ key: `${r._id.placement} · ${r._id.platform}`, count: r.count }));
                 }
 
                 if (groupBy === 'platform') {
@@ -662,6 +747,67 @@ const RootQuery = new GraphQLObjectType({
                     { $limit: safeLimit },
                 ]);
                 return rows.map((r: any) => ({ key: r._id, count: r.count }));
+            },
+        },
+        signingReportSummary: {
+            type: GraphQLNonNull(SigningReportSummaryType),
+            args: { artistName: { type: GraphQLNonNull(GraphQLString) } },
+            async resolve(_parent, { artistName }) {
+                return await loadSigningSummary(artistName);
+            },
+        },
+        recentSigningReports: {
+            type: GraphQLList(SigningReportType),
+            args: {
+                artistName: { type: GraphQLNonNull(GraphQLString) },
+                limit:      { type: GraphQLInt, defaultValue: 5 },
+            },
+            async resolve(_parent, { artistName, limit }) {
+                return await SigningReport.find({ artistName, status: 'approved' }, PRIVATE_REPORT_FIELDS)
+                    .sort({ signedOn: -1 })
+                    .limit(Math.min(Math.max(limit, 1), 20))
+                    .lean();
+            },
+        },
+        pendingSigningReports: {
+            type: GraphQLList(SigningReportType),
+            args: { limit: { type: GraphQLInt, defaultValue: 50 } },
+            async resolve(_parent, { limit }, context) {
+                requireAdmin(context.isAuthenticated, context.userRole);
+                const reports = await SigningReport.find({ status: 'pending' })
+                    .sort({ createdAt: 1 })
+                    .limit(Math.min(limit, 200))
+                    .lean();
+                const userIds = [...new Set(reports.map((r) => String(r.userId)))];
+                const [users, approvedCounts] = await Promise.all([
+                    User.find({ _id: { $in: userIds } }, { name: 1 }).lean(),
+                    SigningReport.aggregate([
+                        { $match: { userId: { $in: reports.map((r) => r.userId) }, status: 'approved' } },
+                        { $group: { _id: '$userId', count: { $sum: 1 } } },
+                    ]),
+                ]);
+                const nameById = new Map(users.map((u: any) => [String(u._id), u.name]));
+                const approvedById = new Map(approvedCounts.map((c: any) => [String(c._id), c.count]));
+                const medians = new Map<string, number | null>();
+                for (const artistName of new Set(reports.map((r) => r.artistName))) {
+                    medians.set(artistName, (await loadSigningSummary(artistName)).medianPrice);
+                }
+                return reports.map((r) => ({
+                    ...r,
+                    submitterName: nameById.get(String(r.userId)) ?? null,
+                    submitterApprovedCount: approvedById.get(String(r.userId)) ?? 0,
+                    artistMedianPrice: medians.get(r.artistName) ?? null,
+                }));
+            },
+        },
+        mySigningReports: {
+            type: GraphQLList(SigningReportType),
+            async resolve(_parent, _args, context) {
+                requireAuth(context.isAuthenticated);
+                return await SigningReport.find({ userId: context.userId }, { userId: 0, reviewedBy: 0 })
+                    .sort({ createdAt: -1 })
+                    .limit(100)
+                    .lean();
             },
         },
     },
@@ -933,6 +1079,8 @@ const mutations = new GraphQLObjectType({
                             updateValue
                         );
                     invalidateArtistCache();
+                    await renameSigningReports((artist as any).name, updateValue["name"]);
+                    await recordArtistUpdate(updateValue["name"] ?? (artist as any).name, artist.toObject(), updateValue);
                     return updated;
                 } catch (err) {
                     throw new Error(err);
@@ -979,16 +1127,10 @@ const mutations = new GraphQLObjectType({
                     const currentArtist = await Artist.findById(id);
                     if (!currentArtist) throw new Error("Artist not found");
 
-                    // Track which fields changed
-                    const fieldsChanged: string[] = [];
                     const updateData: any = {};
-
                     for (const [key, value] of Object.entries(updateFields)) {
                         if (value !== undefined && value !== null) {
                             updateData[key] = value;
-                            if (currentArtist[key] !== value) {
-                                fieldsChanged.push(key);
-                            }
                         }
                     }
 
@@ -999,17 +1141,10 @@ const mutations = new GraphQLObjectType({
                         { new: true }
                     );
 
-                    // Create ArtistChange record if fields actually changed
-                    if (fieldsChanged.length > 0) {
-                        invalidateArtistCache();
-                        await ArtistChange.create({
-                            artistName: updatedArtist.name,
-                            changeType: 'update',
-                            fieldsChanged: fieldsChanged,
-                            timestamp: new Date(),
-                            processed: false
-                        });
-                    }
+                    invalidateArtistCache();
+                    await renameSigningReports(currentArtist.name, updateData.name);
+                    // Queue follower-visible changes for the daily artist digest
+                    await recordArtistUpdate(updatedArtist.name, currentArtist.toObject(), updateData);
 
                     return updatedArtist;
                 } catch (err) {
@@ -1117,6 +1252,31 @@ const mutations = new GraphQLObjectType({
                 } catch (err) {
                     throw new Error("Add Artist to Event Failed. Try again.");
                 }
+            },
+        },
+        // remove artist from event
+        removeArtistFromEvent: {
+            type: MapArtistToEventType,
+            args: {
+                artistName: { type: GraphQLNonNull(GraphQLString) },
+                eventId: { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(parent, {artistName, eventId}, context) {
+                // Require admin privileges
+                requireAdmin(context.isAuthenticated, context.userRole);
+
+                const removed = await MapArtistToEvent.findOneAndDelete({ artistName, eventId });
+                if (!removed) throw new Error("Artist is not attached to this event");
+
+                try {
+                    // Drop pending digest notifications so a removed artist isn't announced
+                    await ArtistChange.deleteMany({ artistName, eventId, changeType: 'added_to_event', processed: false });
+                    await EventChange.deleteMany({ artistName, eventId, changeType: 'artist_added', processed: false });
+                } catch (err) {
+                    console.error("Failed to clear pending event notifications:", err);
+                }
+
+                return removed;
             },
         },
         // update password
@@ -1826,14 +1986,19 @@ const mutations = new GraphQLObjectType({
                 platform:   { type: GraphQLNonNull(GraphQLString) },
                 cardName:   { type: GraphQLString },
                 cardSet:    { type: GraphQLString },
+                placement:  { type: GraphQLString },
             },
-            async resolve(_parent, { artistName, platform, cardName, cardSet }) {
+            async resolve(_parent, { artistName, platform, cardName, cardSet, placement }) {
                 const validPlatforms = ['manapool', 'tcgplayer', 'cardkingdom'];
                 if (!validPlatforms.includes(platform)) {
                     return { success: false, message: "Invalid platform" };
                 }
+                const validPlacements = ['allcards', 'artist_page', 'event', 'wishlist'];
                 try {
-                    await PriceClick.create({ artistName, platform, cardName, cardSet });
+                    await PriceClick.create({
+                        artistName, platform, cardName, cardSet,
+                        placement: validPlacements.includes(placement) ? placement : undefined,
+                    });
                     return { success: true };
                 } catch (err: any) {
                     return { success: false, message: err.message || "Failed to log click" };
@@ -1909,6 +2074,109 @@ const mutations = new GraphQLObjectType({
                     return await item.save();
                 } catch (err) {
                     throw new Error("Failed to update card collection");
+                }
+            },
+        },
+        submitSigningReport: {
+            type: SigningReportType,
+            args: {
+                artistName: { type: GraphQLNonNull(GraphQLString) },
+                input:      { type: GraphQLNonNull(SigningReportInput) },
+            },
+            async resolve(_parent, { artistName, input }, context) {
+                requireAuth(context.isAuthenticated);
+
+                const artist = await Artist.findOne({ name: artistName }).collation({ locale: 'en', strength: 1 }).lean();
+                if (!artist) throw new Error("Artist not found.");
+
+                const clean = validateSigningReport(input);
+                if (clean.eventId && (!isValidObjectId(clean.eventId) || !(await SigningEvent.exists({ _id: clean.eventId })))) {
+                    delete clean.eventId;
+                }
+
+                const now = Date.now();
+                const [last24h, forArtist, approvedByUser] = await Promise.all([
+                    SigningReport.countDocuments({ userId: context.userId, createdAt: { $gte: new Date(now - 24 * 60 * 60 * 1000) } }),
+                    SigningReport.countDocuments({
+                        userId: context.userId,
+                        artistName: artist.name,
+                        createdAt: { $gte: new Date(now - PER_ARTIST_COOLDOWN_DAYS * 24 * 60 * 60 * 1000) },
+                    }),
+                    SigningReport.countDocuments({ userId: context.userId, status: 'approved' }),
+                ]);
+                const limitMessage = rateLimitMessage(last24h, forArtist);
+                if (limitMessage) throw new Error(limitMessage);
+
+                const { medianPrice } = await loadSigningSummary(artist.name);
+                const status = needsReview(clean, approvedByUser, medianPrice) ? 'pending' : 'approved';
+                const report = await SigningReport.create({
+                    ...clean,
+                    artistName: artist.name,
+                    userId: context.userId,
+                    status,
+                    ...(status === 'approved' && { reviewedAt: new Date() }),
+                });
+                if (status === 'approved') cacheDelete(signingSummaryKey(artist.name));
+                return report;
+            },
+        },
+        reviewSigningReport: {
+            type: MutationResponseType,
+            args: {
+                id:              { type: GraphQLNonNull(GraphQLID) },
+                status:          { type: GraphQLNonNull(GraphQLString) },
+                rejectionReason: { type: GraphQLString },
+            },
+            async resolve(_parent, { id, status, rejectionReason }, context) {
+                requireAdmin(context.isAuthenticated, context.userRole);
+                if (status !== 'approved' && status !== 'rejected') {
+                    return { success: false, message: "Status must be approved or rejected" };
+                }
+                try {
+                    const report = await SigningReport.findByIdAndUpdate(id, {
+                        $set: {
+                            status,
+                            rejectionReason: status === 'rejected' ? rejectionReason || undefined : undefined,
+                            reviewedAt: new Date(),
+                            reviewedBy: context.userId,
+                        },
+                    });
+                    if (!report) return { success: false, message: "Report not found" };
+                    cacheDelete(signingSummaryKey(report.artistName));
+                    return { success: true };
+                } catch (err: any) {
+                    return { success: false, message: err.message || "Failed to review report" };
+                }
+            },
+        },
+        deleteMySigningReport: {
+            type: MutationResponseType,
+            args: { id: { type: GraphQLNonNull(GraphQLID) } },
+            async resolve(_parent, { id }, context) {
+                requireAuth(context.isAuthenticated);
+                try {
+                    const report = await SigningReport.findOne({ _id: id, userId: context.userId });
+                    if (!report) return { success: false, message: "Report not found" };
+                    await report.deleteOne();
+                    cacheDelete(signingSummaryKey(report.artistName));
+                    return { success: true };
+                } catch (err: any) {
+                    return { success: false, message: err.message || "Failed to delete report" };
+                }
+            },
+        },
+        deleteSigningReport: {
+            type: MutationResponseType,
+            args: { id: { type: GraphQLNonNull(GraphQLID) } },
+            async resolve(_parent, { id }, context) {
+                requireAdmin(context.isAuthenticated, context.userRole);
+                try {
+                    const report = await SigningReport.findByIdAndDelete(id);
+                    if (!report) return { success: false, message: "Report not found" };
+                    cacheDelete(signingSummaryKey(report.artistName));
+                    return { success: true };
+                } catch (err: any) {
+                    return { success: false, message: err.message || "Failed to delete report" };
                 }
             },
         },

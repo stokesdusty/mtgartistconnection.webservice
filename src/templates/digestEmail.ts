@@ -1,4 +1,5 @@
 import { SITE_URL } from './siteUrl';
+import { chip, monoLabel, palette, renderEmail, subscriberFooter, textLink } from './emailLayout';
 
 interface ArtistChangeData {
   artistName: string;
@@ -28,135 +29,92 @@ const fieldNameMap: Record<string, string> = {
   inprnt: 'INPRNT Link',
 };
 
+// One labelled block inside an artist card ("Profile Updated", "Added to Events", ...).
+const changeBlock = (label: string, color: string, content: string): string => `
+  <div style="margin-top: 16px; padding-left: 12px; border-left: 2px solid ${color};">
+    <div style="margin-bottom: 8px;">${monoLabel(label, color)}</div>
+    ${content}
+  </div>
+`;
+
 export const generateDigestEmail = (artistChanges: ArtistChangeData[]): string => {
   const artistSections = artistChanges.map(({ artistName, changes }) => {
     // Group by change type
     const updates = changes.filter(c => c.changeType === 'update');
     const events = changes.filter(c => c.changeType === 'added_to_event');
     const newsArticles = changes.filter(c => c.changeType === 'news_article');
+    const profileUrl = `${SITE_URL}/artist/${encodeURIComponent(artistName)}`;
 
-    let section = `
-      <div style="margin-bottom: 30px; border-bottom: 2px solid #507A60; padding-bottom: 20px;">
-        <h2 style="color: #507A60; margin-bottom: 15px;">🎨 ${artistName}</h2>
-    `;
+    let blocks = '';
 
-    // News Articles Section
-    if (newsArticles.length > 0) {
-      section += `
-        <div style="background-color: #f0f7f2; border-left: 4px solid #507A60; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0;">
-          <h3 style="color: #333; font-size: 16px; margin: 0 0 10px 0;">📰 New News Article${newsArticles.length > 1 ? 's' : ''}</h3>
-      `;
-      newsArticles.forEach(article => {
-        section += `
-          <div style="margin-bottom: 12px;">
-            <strong style="color: #507A60;">${article.newsArticleTitle || 'New Article'}</strong>
-            <p style="margin: 5px 0; color: #555; font-size: 14px;">${article.newsArticleSummary || ''}</p>
-          </div>
-        `;
-      });
-      section += `
-          <a href="${SITE_URL}/news/artist/${encodeURIComponent(artistName)}"
-             style="color: #507A60; text-decoration: none; font-weight: 600; font-size: 14px;">
-            Read full article${newsArticles.length > 1 ? 's' : ''} →
-          </a>
-        </div>
-      `;
+    if (events.length > 0) {
+      blocks += changeBlock(
+        `Added to Event${events.length > 1 ? 's' : ''}`,
+        palette.accentText,
+        events.map(event => {
+          const startDate = new Date(event.eventStartDate).toLocaleDateString();
+          const endDate = new Date(event.eventEndDate).toLocaleDateString();
+          return `
+            <p style="margin: 0 0 8px;">
+              <strong style="font-size: 15px; color: ${palette.fg};">${event.eventName}</strong><br/>
+              <span style="font-size: 13px; color: ${palette.muted};">
+                ${startDate}${startDate !== endDate ? ` - ${endDate}` : ''} &middot; ${event.eventLocation}
+              </span>
+            </p>
+          `;
+        }).join(''),
+      );
     }
 
-    // Profile Updates Section
+    // News pages are hidden on the site, so these link through the artist profile below.
+    if (newsArticles.length > 0) {
+      blocks += changeBlock(
+        `New News Article${newsArticles.length > 1 ? 's' : ''}`,
+        palette.info,
+        newsArticles.map(article => `
+          <p style="margin: 0 0 8px;">
+            <strong style="font-size: 15px; color: ${palette.fg};">${article.newsArticleTitle || 'New Article'}</strong><br/>
+            <span style="font-size: 13px; line-height: 1.5; color: ${palette.muted};">${article.newsArticleSummary || ''}</span>
+          </p>
+        `).join(''),
+      );
+    }
+
     if (updates.length > 0) {
       // Get unique fields across all updates
-      const allFields = [...new Set(updates.flatMap(u => u.fieldsChanged))];
-      section += `
-        <div style="background-color: #fff8e6; border-left: 4px solid #f0ad4e; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0;">
-          <h3 style="color: #333; font-size: 16px; margin: 0 0 10px 0;">✏️ Profile Updated</h3>
-          <ul style="margin: 0; padding-left: 20px; color: #555;">
-      `;
-      allFields.forEach(field => {
-        section += `<li style="margin-bottom: 4px;">${fieldNameMap[field] || field}</li>`;
-      });
-      section += `
-          </ul>
-        </div>
-      `;
+      const allFields = [...new Set(updates.flatMap(u => u.fieldsChanged))] as string[];
+      blocks += changeBlock(
+        'Profile Updated',
+        palette.warn,
+        `<div>${allFields.map(field => chip(fieldNameMap[field] || field)).join('')}</div>`,
+      );
     }
 
-    // Events Section
-    if (events.length > 0) {
-      section += `
-        <div style="background-color: #e6f3ff; border-left: 4px solid #5bc0de; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0;">
-          <h3 style="color: #333; font-size: 16px; margin: 0 0 10px 0;">📅 Added to Event${events.length > 1 ? 's' : ''}</h3>
-      `;
-      events.forEach(event => {
-        const startDate = new Date(event.eventStartDate).toLocaleDateString();
-        const endDate = new Date(event.eventEndDate).toLocaleDateString();
-        section += `
-          <div style="margin-bottom: 10px;">
-            <strong style="color: #31708f;">${event.eventName}</strong><br/>
-            <span style="color: #555; font-size: 14px;">
-              ${startDate}${startDate !== endDate ? ` - ${endDate}` : ''} • ${event.eventLocation}
-            </span>
-          </div>
-        `;
-      });
-      section += `</div>`;
-    }
-
-    section += `
-        <p style="margin-top: 15px;">
-          <a href="${SITE_URL}/artist/${encodeURIComponent(artistName)}"
-             style="color: #507A60; text-decoration: none; font-weight: 600;">
-            View ${artistName}'s Profile →
-          </a>
+    return `
+      <div style="margin-top: 20px; padding: 20px; background-color: ${palette.surface}; border: 1px solid ${palette.line}; border-radius: 12px;">
+        <h2 style="margin: 0; font-size: 20px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: ${palette.fg};">${artistName}</h2>
+        ${blocks}
+        <p style="margin: 18px 0 0; font-size: 14px;">
+          ${textLink(profileUrl, `View ${artistName}'s Profile &rarr;`)}
         </p>
       </div>
     `;
-    return section;
   }).join('');
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
-      <div style="background-color: #507A60; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-        <h1 style="margin: 0; font-size: 24px;">MTG Artist Connection</h1>
-        <p style="margin: 5px 0 0 0; font-size: 14px;">Your Daily Artist Updates</p>
-      </div>
+  const artistCount = artistChanges.length;
+  const artistLabel = `${artistCount} artist${artistCount === 1 ? '' : 's'}`;
 
-      <div style="background-color: #ffffff; padding: 20px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <p style="font-size: 16px; margin-top: 0; color: #555;">
-          Here are today's updates for artists you follow:
-        </p>
-
-        ${artistSections}
-
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 14px; color: #666;">
-          <p>
-            <a href="${SITE_URL}/settings"
-               style="color: #507A60; text-decoration: none; font-weight: 600;">
-              Manage email preferences
-            </a> |
-            <a href="${SITE_URL}/settings"
-               style="color: #507A60; text-decoration: none; font-weight: 600;">
-              Unfollow artists
-            </a>
-          </p>
-          <p style="margin-top: 15px; font-size: 12px; color: #999;">
-            You're receiving this email because you follow these artists and have artist update emails enabled.
-          </p>
-          <p style="margin-top: 10px;">
-            <a href="${SITE_URL}"
-               style="color: #507A60; text-decoration: none; font-weight: 600;">
-              Visit MTG Artist Connection
-            </a>
-          </p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+  return renderEmail({
+    title: 'Your daily artist updates',
+    preheader: `New activity from ${artistLabel} you follow.`,
+    eyebrow: `Daily digest &middot; ${artistLabel}`,
+    heading: 'Artist',
+    headingMuted: 'updates.',
+    intro: `Here's what changed today for artists you follow.`,
+    body: artistSections,
+    footer: subscriberFooter(
+      `You're receiving this email because you follow these artists and have artist update emails enabled.`,
+      [[`${SITE_URL}/settings`, 'Manage email preferences'], [`${SITE_URL}/following`, 'Unfollow artists']],
+    ),
+  });
 };

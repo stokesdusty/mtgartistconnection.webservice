@@ -166,6 +166,17 @@ export const CardPriceType = new GraphQLObjectType({
     }),
 });
 
+// TCGplayer's naming for a product, as Mass Entry expects it.
+export const TcgplayerProductType = new GraphQLObjectType({
+    name: "TcgplayerProductType",
+    fields: () => ({
+        productId: { type: GraphQLNonNull(GraphQLInt) },
+        name: { type: GraphQLNonNull(GraphQLString) },
+        setCode: { type: GraphQLNonNull(GraphQLString) },
+        number: { type: GraphQLString },
+    }),
+});
+
 export const CardKingdomPriceType = new GraphQLObjectType({
     name: "CardKingdomPriceType",
     fields: () => ({
@@ -359,5 +370,64 @@ export const NewsReviewType = new GraphQLObjectType({
             type: GraphQLString,
             resolve: (parent) => parent.publishedAt ? new Date(parent.publishedAt).toISOString() : null
         },
+    }),
+});
+export const SigningReportExtraType = new GraphQLObjectType({
+    name: "SigningReportExtraType",
+    fields: () => ({
+        kind:  { type: GraphQLNonNull(GraphQLString) },
+        price: { type: GraphQLNonNull(GraphQLFloat) },
+    }),
+});
+
+const isoDate = (field: string) => ({
+    type: GraphQLString,
+    resolve: (parent: any) => parent[field] ? new Date(parent[field]).toISOString() : null,
+});
+
+// Public queries return plain objects without userId; status, review and submitter
+// fields are only filled in for the report's owner or an admin.
+export const SigningReportType = new GraphQLObjectType({
+    name: "SigningReportType",
+    fields: () => ({
+        id:              { type: GraphQLNonNull(GraphQLID), resolve: (parent) => String(parent._id ?? parent.id) },
+        artistName:      { type: GraphQLNonNull(GraphQLString) },
+        signedOn:        isoDate('signedOn'),
+        method:          { type: GraphQLNonNull(GraphQLString) },
+        pricePerSig:     { type: GraphQLNonNull(GraphQLFloat) },
+        freeCount:       { type: GraphQLInt },
+        perPersonLimit:  { type: GraphQLInt },
+        extras:          { type: GraphQLList(SigningReportExtraType) },
+        turnaroundWeeks: { type: GraphQLInt },
+        eventId:         { type: GraphQLID },
+        serviceName:     { type: GraphQLString },
+        note:            { type: GraphQLString },
+        status:          { type: GraphQLString },
+        rejectionReason: { type: GraphQLString },
+        createdAt:       isoDate('createdAt'),
+        submitterName:          { type: GraphQLString },
+        submitterApprovedCount: { type: GraphQLInt },
+        artistMedianPrice:      { type: GraphQLFloat },
+    }),
+});
+
+export const SigningMethodStatType = new GraphQLObjectType({
+    name: "SigningMethodStatType",
+    fields: () => ({
+        method:      { type: GraphQLNonNull(GraphQLString) },
+        count:       { type: GraphQLNonNull(GraphQLInt) },
+        medianPrice: { type: GraphQLFloat },
+    }),
+});
+
+export const SigningReportSummaryType = new GraphQLObjectType({
+    name: "SigningReportSummaryType",
+    fields: () => ({
+        count:          { type: GraphQLNonNull(GraphQLInt) },
+        medianPrice:    { type: GraphQLFloat },
+        minPrice:       { type: GraphQLFloat },
+        maxPrice:       { type: GraphQLFloat },
+        latestSignedOn: { type: GraphQLString },
+        byMethod:       { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(SigningMethodStatType))) },
     }),
 });
