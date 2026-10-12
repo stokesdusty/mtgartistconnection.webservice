@@ -2077,7 +2077,7 @@ const mutations = new GraphQLObjectType({
                 if (!validPlatforms.includes(platform)) {
                     return { success: false, message: "Invalid platform" };
                 }
-                const validPlacements = ['allcards', 'artist_page', 'event', 'wishlist'];
+                const validPlacements = ['allcards', 'artist_page', 'breakdown', 'event', 'wishlist'];
                 try {
                     await PriceClick.create({
                         artistName, platform, cardName, cardSet,
