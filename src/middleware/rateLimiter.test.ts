@@ -1,4 +1,4 @@
-import { isAuthOperation } from './rateLimiter';
+import { isAuthOperation, isInviteOperation } from './rateLimiter';
 
 describe('isAuthOperation', () => {
   it('detects a plain login mutation', () => {
@@ -28,5 +28,17 @@ describe('isAuthOperation', () => {
 
   it('returns false for unparseable queries', () => {
     expect(isAuthOperation('mutation { login(')).toBe(false);
+  });
+});
+
+describe('isInviteOperation', () => {
+  it('detects invite lookups and joins, even behind an alias', () => {
+    expect(isInviteOperation('query { groupOrderByInvite(token: "t") { name } }')).toBe(true);
+    expect(isInviteOperation('mutation { j: joinGroupOrder(token: "t", acceptTerms: true) { id } }')).toBe(true);
+  });
+
+  it('ignores other group order operations', () => {
+    expect(isInviteOperation('query { myGroupOrders { id } }')).toBe(false);
+    expect(isAuthOperation('query { groupOrderByInvite(token: "t") { name } }')).toBe(false);
   });
 });

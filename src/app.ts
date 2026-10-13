@@ -11,7 +11,7 @@ import cron from 'node-cron';
 import { startPriceSyncScheduler } from './services/priceSyncService';
 import { startCardKingdomPriceSyncScheduler } from './services/cardKingdomPriceSync';
 import { authMiddleware } from './middleware/auth';
-import { graphqlAuthRateLimiter } from './middleware/rateLimiter';
+import { graphqlRateLimiter } from './middleware/rateLimiter';
 import { runDailyDigest } from './jobs/dailyDigest';
 import { runDailyEventDigest } from './jobs/dailyEventDigest';
 import { runScryfallArtistSync } from './jobs/scryfallArtistSync';
@@ -19,10 +19,12 @@ import { runSetArtistSync } from './jobs/setArtistSync';
 import SetArtists from './models/SetArtists';
 import { runDailyNewArtistDigest } from './jobs/dailyNewArtistDigest';
 import { runMountainMageSync } from './jobs/mountainMageSync';
+import { runGroupOrderCutoffReminders } from './jobs/groupOrderCutoffReminders';
 // import { runMarksSignatureSync } from './jobs/marksSignatureSync'; // cron disabled below
 import sitemapRouter from './routes/sitemap';
 import publicArtistRouter from './routes/publicArtist';
 import publicArtistsRouter from './routes/publicArtists';
+import groupOrderShareRouter from './routes/groupOrderShare';
 
 // Dotenv config
 config();
@@ -68,9 +70,9 @@ app.use(cors({
 }));
 app.use(helmet());
 
-// Rate-limit login/signup attempts on /graphql to mitigate brute-force and
-// credential-stuffing attacks, without throttling other GraphQL operations.
-app.use('/graphql', graphqlAuthRateLimiter);
+// Rate-limit login/signup attempts (brute-force and credential stuffing) and group order
+// invite lookups (token guessing) on /graphql, without throttling other operations.
+app.use('/graphql', graphqlRateLimiter);
 
 app.use('/graphql', (req, res, next) => {
     const isMutation = req.body?.query?.trimStart().startsWith('mutation');
@@ -84,6 +86,7 @@ app.use('/graphql', (req, res, next) => {
 app.use('/sitemap.xml', sitemapRouter);
 app.use('/api/public/artist', publicArtistRouter);
 app.use('/api/public/artists', publicArtistsRouter);
+app.use('/share/group-order', groupOrderShareRouter);
 
 app.get('/.well-known/security.txt', (_req, res) => {
     res.type('text/plain');
@@ -108,91 +111,107 @@ app.use("/graphql", graphqlHTTP((req) => ({
     }
 })));
 
+// Every scheduled job: price syncs, data syncs, and the digests that email users.
+const scheduleJobs = () => {
+    // Start the daily price sync schedulers
+    startPriceSyncScheduler();
+    startCardKingdomPriceSyncScheduler();
+
+    // Start the daily digest schedulers
+    // Run artist digest daily at 8 PM (20:00) in server timezone
+    cron.schedule('0 20 * * *', async () => {
+        console.log('Triggering daily artist digest job...');
+        try {
+            await runDailyDigest();
+        } catch (error) {
+            console.error('Daily artist digest job failed:', error);
+        }
+    });
+    console.log('Daily artist digest cron job scheduled for 8 PM daily');
+
+    // Run event digest daily at 8 PM (20:00) in server timezone
+    cron.schedule('0 20 * * *', async () => {
+        console.log('Triggering daily event digest job...');
+        try {
+            await runDailyEventDigest();
+        } catch (error) {
+            console.error('Daily event digest job failed:', error);
+        }
+    });
+    console.log('Daily event digest cron job scheduled for 8 PM daily');
+
+    // Run Scryfall artist sync daily at 4 PM PST (midnight UTC)
+    cron.schedule('0 0 * * *', async () => {
+        console.log('Triggering Scryfall artist sync job...');
+        try {
+            await runScryfallArtistSync();
+        } catch (error) {
+            console.error('Scryfall artist sync job failed:', error);
+        }
+        // Refresh the set → artists index for the homepage "Set" filter
+        try {
+            await runSetArtistSync();
+        } catch (error) {
+            console.error('Set artist sync job failed:', error);
+        }
+    });
+    console.log('Scryfall artist sync + set artist sync cron job scheduled for 4 PM PST daily');
+
+    // First deploy: build the set index now instead of waiting for midnight.
+    SetArtists.estimatedDocumentCount()
+        .then(count => (count === 0 ? runSetArtistSync() : undefined))
+        .catch(error => console.error('Initial set artist sync failed:', error));
+
+    // Run new artist digest daily at 8 PM (20:00) in server timezone
+    cron.schedule('0 20 * * *', async () => {
+        console.log('Triggering daily new artist digest job...');
+        try {
+            await runDailyNewArtistDigest();
+        } catch (error) {
+            console.error('Daily new artist digest job failed:', error);
+        }
+    });
+    console.log('Daily new artist digest cron job scheduled for 8 PM daily');
+
+    // Run Mountain Mage Signatures sync daily at 5 AM UTC
+    cron.schedule('0 5 * * *', async () => {
+        console.log('Triggering Mountain Mage sync job...');
+        try {
+            await runMountainMageSync();
+        } catch (error) {
+            console.error('Mountain Mage sync job failed:', error);
+        }
+    });
+    console.log('Mountain Mage sync cron job scheduled for 5 AM UTC daily');
+
+    // Group order cutoff reminders, checked hourly so each lands about 48 hours ahead
+    cron.schedule('0 * * * *', async () => {
+        try {
+            await runGroupOrderCutoffReminders();
+        } catch (error) {
+            console.error('Group order cutoff reminder job failed:', error);
+        }
+    });
+    console.log('Group order cutoff reminder cron job scheduled hourly');
+
+    // Disabled until the job can isolate upcoming artists from Mark's post
+    // // Run Mark's Signature Service sync daily at 10 AM Pacific (DST-aware)
+    // cron.schedule('0 10 * * *', async () => {
+    //     console.log("Triggering Mark's Signature Service sync job...");
+    //     try {
+    //         await runMarksSignatureSync();
+    //     } catch (error) {
+    //         console.error("Mark's Signature Service sync job failed:", error);
+    //     }
+    // }, { timezone: 'America/Los_Angeles' });
+    // console.log("Mark's Signature Service sync cron job scheduled for 10 AM Pacific daily");
+};
+
 connectToDatabase()
     .then(() => {
-        // Start the daily price sync schedulers
-        startPriceSyncScheduler();
-        startCardKingdomPriceSyncScheduler();
-
-        // Start the daily digest schedulers
-        // Run artist digest daily at 8 PM (20:00) in server timezone
-        cron.schedule('0 20 * * *', async () => {
-            console.log('Triggering daily artist digest job...');
-            try {
-                await runDailyDigest();
-            } catch (error) {
-                console.error('Daily artist digest job failed:', error);
-            }
-        });
-        console.log('Daily artist digest cron job scheduled for 8 PM daily');
-
-        // Run event digest daily at 8 PM (20:00) in server timezone
-        cron.schedule('0 20 * * *', async () => {
-            console.log('Triggering daily event digest job...');
-            try {
-                await runDailyEventDigest();
-            } catch (error) {
-                console.error('Daily event digest job failed:', error);
-            }
-        });
-        console.log('Daily event digest cron job scheduled for 8 PM daily');
-
-        // Run Scryfall artist sync daily at 4 PM PST (midnight UTC)
-        cron.schedule('0 0 * * *', async () => {
-            console.log('Triggering Scryfall artist sync job...');
-            try {
-                await runScryfallArtistSync();
-            } catch (error) {
-                console.error('Scryfall artist sync job failed:', error);
-            }
-            // Refresh the set → artists index for the homepage "Set" filter
-            try {
-                await runSetArtistSync();
-            } catch (error) {
-                console.error('Set artist sync job failed:', error);
-            }
-        });
-        console.log('Scryfall artist sync + set artist sync cron job scheduled for 4 PM PST daily');
-
-        // First deploy: build the set index now instead of waiting for midnight.
-        SetArtists.estimatedDocumentCount()
-            .then(count => (count === 0 ? runSetArtistSync() : undefined))
-            .catch(error => console.error('Initial set artist sync failed:', error));
-
-        // Run new artist digest daily at 8 PM (20:00) in server timezone
-        cron.schedule('0 20 * * *', async () => {
-            console.log('Triggering daily new artist digest job...');
-            try {
-                await runDailyNewArtistDigest();
-            } catch (error) {
-                console.error('Daily new artist digest job failed:', error);
-            }
-        });
-        console.log('Daily new artist digest cron job scheduled for 8 PM daily');
-
-        // Run Mountain Mage Signatures sync daily at 5 AM UTC
-        cron.schedule('0 5 * * *', async () => {
-            console.log('Triggering Mountain Mage sync job...');
-            try {
-                await runMountainMageSync();
-            } catch (error) {
-                console.error('Mountain Mage sync job failed:', error);
-            }
-        });
-        console.log('Mountain Mage sync cron job scheduled for 5 AM UTC daily');
-
-        // Disabled until the job can isolate upcoming artists from Mark's post
-        // // Run Mark's Signature Service sync daily at 10 AM Pacific (DST-aware)
-        // cron.schedule('0 10 * * *', async () => {
-        //     console.log("Triggering Mark's Signature Service sync job...");
-        //     try {
-        //         await runMarksSignatureSync();
-        //     } catch (error) {
-        //         console.error("Mark's Signature Service sync job failed:", error);
-        //     }
-        // }, { timezone: 'America/Los_Angeles' });
-        // console.log("Mark's Signature Service sync cron job scheduled for 10 AM Pacific daily");
-
+        // Local testing (npm run dev:local) turns these off so nothing emails users or calls partner APIs.
+        if (process.env.DISABLE_JOBS === 'true') console.log('Scheduled jobs are off (DISABLE_JOBS=true)');
+        else scheduleJobs();
 
         return app.listen(process.env.PORT,
         () => console.log(`Server Open on Port ${process.env.PORT}`)

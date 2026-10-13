@@ -27,6 +27,13 @@ Backend API for tracking Magic: The Gathering artists, signing events, and card 
    npm run dev
    ```
 
+   Or test locally without touching production: `npm run dev:local` runs the API on a throwaway
+   MongoDB in `.local-db/`, seeded with test accounts (password `password123`), signing events and a
+   sample group order. It ignores `MONGODB_URI`, runs no scheduled jobs, and logs emails instead of
+   sending them. Use it with the frontend's `npm run start:local`. Delete `.local-db/` to start over.
+
+   `npm run test:integration` runs the group order flows against a real MongoDB the same way.
+
 4. Build for production:
    ```bash
    npm run build

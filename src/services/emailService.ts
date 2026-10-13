@@ -25,6 +25,11 @@ const transporter = nodemailer.createTransport({
 
 // Generic send email function
 export const sendEmail = async (to: string, subject: string, html: string) => {
+  // Local testing (npm run dev:local) logs emails instead of sending them.
+  if (process.env.DISABLE_EMAIL === "true") {
+    console.log(`[email not sent: DISABLE_EMAIL] to ${maskEmail(to)}: ${subject}`);
+    return;
+  }
   await transporter.sendMail({
     from: process.env.EMAIL_FROM || "MTG Artist Connection <noreply@mtgartistconnection.com>",
     to,

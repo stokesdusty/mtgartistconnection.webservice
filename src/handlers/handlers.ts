@@ -29,6 +29,9 @@ import { escapeRegex } from "../utils/regex";
 import { renderPageText } from "../services/urlScanService";
 import { findArtistMatches } from "../services/artistNameMatcher";
 import { matchSetArtists } from "../services/setArtists";
+import { groupOrderMutations, groupOrderQueries } from "./groupOrders";
+import { groupOrderProgressMutations } from "./groupOrderProgress";
+import { groupOrderAdminMutations, groupOrderAdminQueries } from "./groupOrderAdmin";
 import { mongoProductStore, resolveTcgplayerProducts } from "../services/tcgplayerProducts";
 import { recordArtistUpdate } from "../services/artistChangeTracker";
 import { ARTIST_EDITABLE_FIELDS, diffArtistProfile, hasArtistAccess, validateArtistProfileUpdate } from "../services/artistProfile";
@@ -224,6 +227,8 @@ async function renameSigningReports(oldName: string, newName?: string) {
 const RootQuery = new GraphQLObjectType({
     name: "RootQuery",
     fields: {
+        ...groupOrderQueries,
+        ...groupOrderAdminQueries,
         // Get all artists
         artists: {
             type: GraphQLList(ArtistType),
@@ -461,7 +466,8 @@ const RootQuery = new GraphQLObjectType({
             type: GraphQLList(SigningBatchType),
             async resolve(parent, args, context) {
                 requireAuth(context.isAuthenticated);
-                return await SigningBatch.find({ userId: context.userId }).sort({ sortOrder: 1, createdAt: 1 });
+                // Group orders have their own queries (organizedGroupOrders / myGroupOrders).
+                return await SigningBatch.find({ userId: context.userId, groupOrder: null }).sort({ sortOrder: 1, createdAt: 1 });
             },
         },
         me: {
@@ -861,6 +867,9 @@ const RootQuery = new GraphQLObjectType({
 const mutations = new GraphQLObjectType({
     name: "mutations",
     fields: {
+        ...groupOrderMutations,
+        ...groupOrderProgressMutations,
+        ...groupOrderAdminMutations,
          // user signup
          signup: {
             type: AuthResponseType,
@@ -2014,6 +2023,11 @@ const mutations = new GraphQLObjectType({
             },
             async resolve(parent, { batchId, name, createdAt, archived, expanded, sortOrder, rows }, context) {
                 requireAuth(context.isAuthenticated);
+                // Group orders change one row at a time through their own mutations; a whole-batch
+                // save would overwrite participants' cards.
+                if (await SigningBatch.exists({ userId: context.userId, batchId, groupOrder: { $ne: null } })) {
+                    throw new Error("Group orders can't be saved from the Signing Tracker.");
+                }
                 const update: any = { name, createdAt };
                 if (archived !== undefined && archived !== null) update.archived = archived;
                 if (expanded !== undefined && expanded !== null) update.expanded = expanded;
@@ -2034,7 +2048,8 @@ const mutations = new GraphQLObjectType({
             async resolve(parent, { batchId }, context) {
                 requireAuth(context.isAuthenticated);
                 try {
-                    await SigningBatch.deleteOne({ userId: context.userId, batchId });
+                    // Group orders are cancelled, not deleted, since other people's cards are in them.
+                    await SigningBatch.deleteOne({ userId: context.userId, batchId, groupOrder: null });
                     return { success: true };
                 } catch (err: any) {
                     return { success: false, message: err.message || "Failed to delete signing batch" };

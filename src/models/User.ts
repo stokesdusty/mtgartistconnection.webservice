@@ -16,6 +16,7 @@ export interface IUser {
     tokenVersion: number;
     isVerifiedArtist: boolean;
     artistId?: Types.ObjectId;
+    discordName: string;
 }
 
 const userSchema = new Schema<IUser>({
@@ -83,6 +84,11 @@ const userSchema = new Schema<IUser>({
     artistId: {
         type: Schema.Types.ObjectId,
         ref: "Artist",
+    },
+    // Unverified; used to match people up in group orders, which are coordinated on Discord.
+    discordName: {
+        type: String,
+        default: '',
     },
 });
 

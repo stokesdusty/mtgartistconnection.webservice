@@ -59,6 +59,7 @@ export const UserType = new GraphQLObjectType({
         monitoredStates: { type: GraphQLList(GraphQLString) },
         isVerifiedArtist: { type: GraphQLBoolean },
         artistId: { type: GraphQLID, resolve: (parent) => parent.artistId ? String(parent.artistId) : null },
+        discordName: { type: GraphQLString },
     }),
 });
 
@@ -287,6 +288,11 @@ export const SigningCardRowType = new GraphQLObjectType({
         signingMethodLabel:{ type: GraphQLString },
         outboundTracking:  { type: GraphQLString },
         inboundTracking:   { type: GraphQLString },
+        // Group orders only.
+        participantId:     { type: GraphQLID, resolve: (row: any) => row.participantId ? String(row.participantId) : null },
+        signatureTypeId:   { type: GraphQLString },
+        notSignedReason:   { type: GraphQLString },
+        receivedQuantity:  { type: GraphQLInt },
     }),
 });
 
@@ -390,7 +396,7 @@ export const SigningReportExtraType = new GraphQLObjectType({
     }),
 });
 
-const isoDate = (field: string) => ({
+export const isoDate = (field: string) => ({
     type: GraphQLString,
     resolve: (parent: any) => parent[field] ? new Date(parent[field]).toISOString() : null,
 });
