@@ -13,7 +13,7 @@ const order: ShareSummary = {
 describe('shareDescription', () => {
     it('sums up the organizer, event, artists with slots, and cutoff', () => {
         expect(shareDescription(order)).toBe(
-            'Run by card.runner (Discord, unverified) · IX Art Show, Oct 21–24 · Artists: Rebecca Guay (3 left), Kaja Foglio, Seb McKinnon (full) · Join by Oct 14');
+            'Run by card.runner on Discord · IX Art Show, Oct 21–24 · Artists: Rebecca Guay (3 left), Kaja Foglio, Seb McKinnon (full) · Join by Oct 14');
     });
 
     it('caps the artist list', () => {

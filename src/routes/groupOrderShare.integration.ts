@@ -16,6 +16,7 @@ let base: string;
 beforeAll(async () => {
     process.env.FRONTEND_URL = 'http://site.test';
     const app = express();
+    app.set('trust proxy', 1);  // as in app.ts
     app.use('/share/group-order', groupOrderShareRouter);
     server = app.listen(0);
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -38,7 +39,7 @@ describe('share page', () => {
         const { status, html } = await get(order.inviteToken);
         expect(status).toBe(200);
         expect(html).toContain('<meta property="og:title" content="IX run · Group order">');
-        expect(html).toContain('Run by card.runner (Discord, unverified) · IX Art Show, Oct 21–24 · Artists: Rebecca Guay (1 left), Kaja Foglio');
+        expect(html).toContain('Run by card.runner on Discord · IX Art Show, Oct 21–24 · Artists: Rebecca Guay (1 left), Kaja Foglio');
         expect(html).toContain(`url=http://site.test/tracker/join/${order.inviteToken}`);
         expect(html).not.toMatch(/Main Street|alice/);
     });
@@ -59,9 +60,31 @@ describe('share page', () => {
         expect((await get(order.inviteToken)).status).toBe(404);
     });
 
+    it('sends links with the token cut off to the Signing Tracker', async () => {
+        const res = await fetch(`${base}/share/group-order/`, { redirect: 'manual' });
+        expect(res.status).toBe(302);
+        expect(res.headers.get('location')).toBe('http://site.test/signingtracker');
+    });
+
     it('handles junk tokens', async () => {
         expect((await get('x'.repeat(80))).status).toBe(404);
         expect((await get('nope')).html).toContain("isn&#39;t active");
+    });
+});
+
+describe('rate limits through the www /join rewrite', () => {
+    // As CloudFront and then Railway forward it: the visitor, then the CloudFront edge.
+    const viaEdge = (visitor: string) =>
+        fetch(`${base}/share/group-order/nope`, {
+            redirect: 'manual',
+            headers: { 'x-amz-cf-id': 'test-request', 'x-forwarded-for': `${visitor}, 130.176.1.1` },
+        }).then((res) => res.status);
+
+    it('limits each visitor on their own, not everyone behind the same edge together', async () => {
+        for (let i = 0; i < 60; i++) expect(await viaEdge('203.0.113.7')).toBe(404);
+        expect(await viaEdge('203.0.113.7')).toBe(429);
+        // Someone else coming through the same CloudFront edge isn't affected.
+        expect(await viaEdge('198.51.100.20')).toBe(404);
     });
 });
 

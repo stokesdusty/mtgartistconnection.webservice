@@ -1,5 +1,5 @@
 import { button, listItem, palette, panel, renderEmail, sectionLabel } from './emailLayout';
-import { SITE_URL } from './siteUrl';
+import { publicSiteUrl } from './siteUrl';
 
 // Transactional emails for group orders ("signing runs"). Everything people typed (order
 // names, Discord names, reasons) is escaped. Links follow FRONTEND_URL so local runs link
@@ -10,7 +10,7 @@ export interface GroupOrderEmail { subject: string; html: string }
 export const escapeHtml = (value: string) =>
     value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-const siteUrl = () => (process.env.FRONTEND_URL || SITE_URL).replace(/\/$/, '');
+const siteUrl = publicSiteUrl;
 export const organizerLink = (orderId: string) => `${siteUrl()}/tracker/group/${orderId}`;
 export const participantLink = (orderId: string) => `${siteUrl()}/tracker/shared/${orderId}`;
 

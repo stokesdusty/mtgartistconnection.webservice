@@ -1,6 +1,25 @@
 import rateLimit from 'express-rate-limit';
 import { Request, Response, NextFunction } from 'express';
+import { isIP } from 'net';
 import { parse, visit, BREAK } from 'graphql';
+
+/**
+ * The visitor's address for requests that came through Amplify's CloudFront (the
+ * www.mtgartistconnection.com/join/<token> rewrite). CloudFront adds the visitor's IP to
+ * X-Forwarded-For, then Railway adds CloudFront's, so with one trusted hop req.ip is the
+ * CloudFront edge that many visitors share. This takes the hop before it instead.
+ * Anything unexpected falls back to req.ip.
+ */
+export function proxiedVisitorIp(req: Pick<Request, 'ip' | 'headers'>): string {
+    const fallback = req.ip ?? '';
+    // CloudFront sets this on every request it forwards.
+    if (!req.headers['x-amz-cf-id']) return fallback;
+    const hops = String(req.headers['x-forwarded-for'] ?? '').split(',').map((hop) => hop.trim()).filter(Boolean);
+    // The last hop is CloudFront itself (what Express already took as req.ip); the one before is the visitor.
+    if (hops.length < 2 || hops[hops.length - 1] !== fallback) return fallback;
+    const visitor = hops[hops.length - 2];
+    return isIP(visitor) ? visitor : fallback;
+}
 
 const AUTH_FIELDS = new Set(['login', 'signup']);
 // Group order invite links are the only thing guarding an order's public page, so

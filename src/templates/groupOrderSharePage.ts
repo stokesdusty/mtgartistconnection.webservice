@@ -22,7 +22,7 @@ const cutoffText = (cutoff: Date) =>
 /** The one-paragraph preview description: organizer, event, artists, cutoff and slots. */
 export function shareDescription(order: ShareSummary): string {
     const parts: string[] = [];
-    parts.push(order.organizerDiscordName ? `Run by ${order.organizerDiscordName} (Discord, unverified)` : 'Group signing run');
+    parts.push(order.organizerDiscordName ? `Run by ${order.organizerDiscordName} on Discord` : 'Group signing run');
     if (order.eventName) parts.push(order.eventDates ? `${order.eventName}, ${order.eventDates}` : order.eventName);
 
     const listed = order.artists.slice(0, MAX_ARTISTS_LISTED).map((a) =>

@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import { proxiedVisitorIp } from '../middleware/rateLimiter';
 import SigningBatch from '../models/SigningBatch';
 import SigningEvent from '../models/SigningEvent';
 import { artistSlots, effectiveOrderStatus, OrderRow } from '../services/groupOrders';
 import { groupOrderSharePage, inactiveSharePage } from '../templates/groupOrderSharePage';
-import { SITE_URL } from '../templates/siteUrl';
+import { publicSiteUrl } from '../templates/siteUrl';
 
 // GET /share/group-order/:token — the link organizers paste into Discord. It serves the
 // preview (order, event, artists, slots, cutoff) and forwards people to the invite page.
@@ -12,14 +13,29 @@ import { SITE_URL } from '../templates/siteUrl';
 
 const router = Router();
 
+const tooMany = (_req: Request, res: Response) => {
+    res.status(429).type('text/plain').send('Too many requests. Please try again later.');
+};
+
+// Each visitor, including those arriving through the www /join rewrite, where req.ip is a
+// CloudFront edge that many visitors share.
 const shareRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 60,
     standardHeaders: true,
     legacyHeaders: false,
-    handler: (_req: Request, res: Response) => {
-        res.status(429).type('text/plain').send('Too many requests. Please try again later.');
-    },
+    keyGenerator: (req: Request) => ipKeyGenerator(proxiedVisitorIp(req)),
+    handler: tooMany,
+});
+
+// The visitor's address comes from headers that someone calling the API directly could fake,
+// so whoever actually connects (a CloudFront edge, or that caller) gets an overall cap too.
+const shareSourceRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 1200,
+    standardHeaders: false,
+    legacyHeaders: false,
+    handler: tooMany,
 });
 
 const shortDate = (value: string) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -33,9 +49,15 @@ export function eventDateRange(startDate: string, endDate: string): string {
     return `${shortDate(startDate)} – ${shortDate(endDate)}`;
 }
 
-router.get('/:token', shareRateLimiter, async (req: Request, res: Response) => {
+// A link with the token cut off (e.g. www.mtgartistconnection.com/join/) goes to the Signing
+// Tracker, where group orders live, rather than a bare "Cannot GET".
+router.get('/', (_req: Request, res: Response) => {
+    res.redirect(302, `${publicSiteUrl()}/signingtracker`);
+});
+
+router.get('/:token', shareSourceRateLimiter, shareRateLimiter, async (req: Request, res: Response) => {
     const token = String(req.params.token ?? '');
-    const frontend = (process.env.FRONTEND_URL || SITE_URL).replace(/\/$/, '');
+    const frontend = publicSiteUrl();
     const joinUrl = `${frontend}/tracker/join/${encodeURIComponent(token)}`;
     const shareUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
     res.type('html').set('Cache-Control', 'public, max-age=300');
