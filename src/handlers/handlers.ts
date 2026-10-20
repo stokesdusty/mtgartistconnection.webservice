@@ -23,7 +23,8 @@ import ArtistEditLog from "../models/ArtistEditLog";
 import { generateToken, generateRefreshToken, verifyRefreshToken, requireAuth, requireAdmin } from "../middleware/auth";
 import { sendWelcomeEmail } from "../services/emailService";
 import { generateNewsArticle } from "../services/aiNewsService";
-import { uploadImageFromBase64 } from "../services/s3UploadService";
+import { CDN_BASE_URL, deleteImage, uploadImageFromBase64 } from "../services/s3UploadService";
+import { cleanSignatureLabel, legacySignatureExample, legacySignatureId, MAX_SIGNATURE_EXAMPLES, MAX_SIGNATURE_IMAGE_BYTES, reorderSignatureExamples } from "../services/signatureExamples";
 import { cacheDelete, cacheGet, cacheSet, invalidateArtistCache } from "../utils/artistCache";
 import { escapeRegex } from "../utils/regex";
 import { renderPageText } from "../services/urlScanService";
@@ -197,6 +198,18 @@ async function requireArtistAccess(context: any, artistId: string) {
     if (!hasArtistAccess(user, artistId)) {
         throw new Error("You don't have access to this artist's dashboard.");
     }
+}
+
+// Signature example changes go in the same audit trail as dashboard edits.
+async function logSignatureExampleEdit(artist: HydratedDocument<IArtist>, context: any, change: { field: string; before?: string; after?: string }) {
+    invalidateArtistCache();
+    await ArtistEditLog.create({
+        artistId: artist._id,
+        artistName: artist.name,
+        userId: context.userId,
+        byAdmin: context.userRole === 'admin',
+        changes: [change],
+    });
 }
 
 // Never shown publicly: who submitted a report, or anything about its review.
@@ -1243,6 +1256,127 @@ const mutations = new GraphQLObjectType({
                 await recordArtistUpdate(artist.name, artist.toObject(), updateData);
 
                 return updatedArtist;
+            },
+        },
+        // Signature examples, managed by admins and the verified artist. Each
+        // returns the artist so the client can refresh its list.
+        addSignatureExample: {
+            type: ArtistType,
+            args: {
+                artistId:    { type: GraphQLNonNull(GraphQLID) },
+                base64Data:  { type: GraphQLNonNull(GraphQLString) },
+                contentType: { type: GraphQLNonNull(GraphQLString) },
+                label:       { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(_parent, { artistId, base64Data, contentType, label }, context) {
+                await requireArtistAccess(context, artistId);
+                const cleanLabel = cleanSignatureLabel(label);
+
+                const artist = await Artist.findById(artistId);
+                if (!artist) throw new Error("Artist not found.");
+                // Keep the old single image by saving it as the first example.
+                const legacy = legacySignatureExample(artist, CDN_BASE_URL);
+                const existing = legacy ? [legacy] : artist.signatureExamples ?? [];
+                if (existing.length >= MAX_SIGNATURE_EXAMPLES) {
+                    throw new Error(`Artists can have up to ${MAX_SIGNATURE_EXAMPLES} signature examples.`);
+                }
+
+                const { imageUrl, key } = await uploadImageFromBase64(base64Data, 'signature', contentType, {
+                    prefix: `signatures/${artist._id}`,
+                    maxBytes: MAX_SIGNATURE_IMAGE_BYTES,
+                });
+                const order = existing.reduce((max, e) => Math.max(max, e.order ?? 0), -1) + 1;
+                const added = { imageUrl, key, label: cleanLabel, order, uploadedBy: context.userId };
+                const updated = await Artist.findByIdAndUpdate(
+                    artistId,
+                    { $push: { signatureExamples: { $each: legacy ? [legacy, added] : [added] } } },
+                    { new: true },
+                );
+
+                await logSignatureExampleEdit(artist, context, { field: 'signatureExamples', after: cleanLabel });
+                await recordArtistUpdate(artist.name, { signatureExamples: '' }, { signatureExamples: cleanLabel });
+                return updated;
+            },
+        },
+        updateSignatureExample: {
+            type: ArtistType,
+            args: {
+                artistId:  { type: GraphQLNonNull(GraphQLID) },
+                exampleId: { type: GraphQLNonNull(GraphQLID) },
+                label:     { type: GraphQLNonNull(GraphQLString) },
+            },
+            async resolve(_parent, { artistId, exampleId, label }, context) {
+                await requireArtistAccess(context, artistId);
+                const cleanLabel = cleanSignatureLabel(label);
+
+                const artist = await Artist.findById(artistId);
+                const example = artist?.signatureExamples?.find((e) => String(e._id) === exampleId);
+                if (!artist || !example) throw new Error("Signature example not found.");
+                if (example.label === cleanLabel) return artist;
+
+                const updated = await Artist.findOneAndUpdate(
+                    { _id: artistId, 'signatureExamples._id': exampleId },
+                    { $set: { 'signatureExamples.$.label': cleanLabel } },
+                    { new: true },
+                );
+                await logSignatureExampleEdit(artist, context, { field: 'signatureExamples', before: example.label, after: cleanLabel });
+                return updated;
+            },
+        },
+        removeSignatureExample: {
+            type: ArtistType,
+            args: {
+                artistId:  { type: GraphQLNonNull(GraphQLID) },
+                exampleId: { type: GraphQLNonNull(GraphQLID) },
+            },
+            async resolve(_parent, { artistId, exampleId }, context) {
+                await requireArtistAccess(context, artistId);
+
+                const artist = await Artist.findById(artistId);
+                if (!artist) throw new Error("Artist not found.");
+                const legacy = legacySignatureExample(artist, CDN_BASE_URL);
+                const unsavedLegacy = !!legacy && exampleId === legacySignatureId(artist);
+                const example = unsavedLegacy
+                    ? legacy
+                    : artist.signatureExamples?.find((e) => String(e._id) === exampleId);
+                if (!example) throw new Error("Signature example not found.");
+
+                // Removing the old single image also clears haveSignature so
+                // the fallback doesn't bring it back.
+                const isLegacy = example.key === `signatures/${artist.filename}.jpg`;
+                const updated = await Artist.findByIdAndUpdate(
+                    artistId,
+                    {
+                        ...(!unsavedLegacy && { $pull: { signatureExamples: { _id: exampleId } } }),
+                        ...(isLegacy && { $set: { haveSignature: 'false' } }),
+                    },
+                    { new: true },
+                );
+                // Only delete files this feature uploaded, never the legacy images.
+                if (example.key?.startsWith(`signatures/${artist._id}/`)) await deleteImage(example.imageUrl);
+
+                await logSignatureExampleEdit(artist, context, { field: 'signatureExamples', before: example.label });
+                return updated;
+            },
+        },
+        reorderSignatureExamples: {
+            type: ArtistType,
+            args: {
+                artistId:   { type: GraphQLNonNull(GraphQLID) },
+                exampleIds: { type: GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLID))) },
+            },
+            async resolve(_parent, { artistId, exampleIds }, context) {
+                await requireArtistAccess(context, artistId);
+
+                const artist = await Artist.findById(artistId);
+                if (!artist) throw new Error("Artist not found.");
+                const examples = artist.signatureExamples ?? [];
+                const order = reorderSignatureExamples(examples.map((e) => String(e._id)), exampleIds);
+                for (const example of examples) example.order = order.get(String(example._id))!;
+                await artist.save();
+
+                invalidateArtistCache();
+                return artist;
             },
         },
         // add event

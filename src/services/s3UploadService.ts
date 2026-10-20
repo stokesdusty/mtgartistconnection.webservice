@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 
 const S3_BUCKET = "mtgartistconnection";
 const AWS_REGION = process.env.AWS_REGION || "us-west-1";
-const CDN_BASE_URL = process.env.CDN_BASE_URL || "https://d25ut0vhqgdazl.cloudfront.net";
+export const CDN_BASE_URL =process.env.CDN_BASE_URL || "https://d25ut0vhqgdazl.cloudfront.net";
 
 const s3Client = new S3Client({
   region: AWS_REGION,
@@ -32,7 +32,8 @@ export interface UploadResponse {
 export const uploadImageFromBase64 = async (
   base64Data: string,
   filename: string,
-  contentType: string
+  contentType: string,
+  { prefix = "news-images", maxBytes }: { prefix?: string; maxBytes?: number } = {}
 ): Promise<UploadResponse> => {
   // Only raster images: anything else (e.g. text/html, image/svg+xml) served
   // from the CDN could run script in a visitor's browser.
@@ -44,10 +45,13 @@ export const uploadImageFromBase64 = async (
   // Remove data URL prefix if present (e.g., "data:image/png;base64,")
   const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, "");
   const buffer = Buffer.from(base64Content, "base64");
+  if (maxBytes && buffer.length > maxBytes) {
+    throw new Error(`Images must be ${Math.floor(maxBytes / (1024 * 1024))}MB or smaller.`);
+  }
 
   // Generate a unique key for the image; the extension comes from the
   // validated content type, never from the client-supplied filename
-  const key = `news-images/${uuidv4()}.${extension}`;
+  const key = `${prefix}/${uuidv4()}.${extension}`;
 
   const command = new PutObjectCommand({
     Bucket: S3_BUCKET,

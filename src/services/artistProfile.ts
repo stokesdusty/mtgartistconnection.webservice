@@ -1,7 +1,8 @@
 // Rules for the artist dashboard: which fields a verified artist may edit on
 // their own page, and how their input is cleaned before it's saved.
 // name, scryfall_name, alternate_names, filename, haveSignature, signingComment
-// and the signing-service flags stay admin-only.
+// and the signing-service flags stay admin-only. Signature examples have their
+// own mutations (services/signatureExamples).
 
 export const MAX_NOTE_LENGTH = 1000;
 export const MAX_URL_LENGTH = 300;

@@ -21,6 +21,7 @@ const fieldNameMap: Record<string, string> = {
   signing: 'Signing Status',
   signingComment: 'Signing Comment',
   haveSignature: 'Signature Example',
+  signatureExamples: 'New Signature Example',
   artistProofs: 'Artist Proofs',
   filename: 'Image Filename',
   mountainmage: 'MountainMage Service',

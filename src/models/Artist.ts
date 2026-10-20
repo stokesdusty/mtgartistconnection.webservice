@@ -1,4 +1,23 @@
-import { Schema, model } from "mongoose";
+import { Schema, Types, model } from "mongoose";
+
+export interface ISignatureExample {
+    _id: Types.ObjectId;
+    imageUrl: string;
+    key: string;
+    label: string;
+    order: number;
+    uploadedBy?: Types.ObjectId;
+    createdAt: Date;
+}
+
+const signatureExampleSchema = new Schema<ISignatureExample>({
+    imageUrl:   { type: String, required: true },
+    key:        { type: String, required: true },
+    label:      { type: String, required: true },
+    order:      { type: Number, default: 0 },
+    uploadedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    createdAt:  { type: Date, default: Date.now },
+});
 
 export interface IArtist {
     name: string;
@@ -26,6 +45,7 @@ export interface IArtist {
     lastSocialSync?: Date;
     artistNote?: string;
     artistNoteUpdatedAt?: Date;
+    signatureExamples?: ISignatureExample[];
 }
 
 const artistSchema = new Schema<IArtist>({
@@ -107,6 +127,12 @@ const artistSchema = new Schema<IArtist>({
     },
     artistNoteUpdatedAt: {
         type: Date
+    },
+    // Labelled signature photos (Regular, Shadow, Sketch...). Replaces the
+    // single haveSignature image; see services/signatureExamples.
+    signatureExamples: {
+        type: [signatureExampleSchema],
+        default: undefined
     }
 });
 

@@ -1,5 +1,16 @@
 import { GraphQLID, GraphQLObjectType, GraphQLString, GraphQLNonNull, GraphQLScalarType, GraphQLInt, GraphQLFloat, GraphQLBoolean, GraphQLList } from "graphql";
 import User from "../models/User";
+import { CDN_BASE_URL } from "../services/s3UploadService";
+import { listSignatureExamples } from "../services/signatureExamples";
+
+export const SignatureExampleType = new GraphQLObjectType({
+    name: "SignatureExampleType",
+    fields: () => ({
+        id: { type: GraphQLNonNull(GraphQLID) },
+        imageUrl: { type: GraphQLNonNull(GraphQLString) },
+        label: { type: GraphQLNonNull(GraphQLString) },
+    }),
+});
 
 export const ArtistType = new GraphQLObjectType({
     name: "ArtistType",
@@ -29,6 +40,11 @@ export const ArtistType = new GraphQLObjectType({
         scryfall_name: { type: GraphQLString },
         artistNote: { type: GraphQLString },
         artistNoteUpdatedAt: isoDate('artistNoteUpdatedAt'),
+        // In display order; falls back to the legacy haveSignature image.
+        signatureExamples: {
+            type: GraphQLNonNull(GraphQLList(GraphQLNonNull(SignatureExampleType))),
+            resolve: (artist: any) => listSignatureExamples(artist, CDN_BASE_URL),
+        },
         // One lookup per artist, so only select it on single-artist queries.
         isVerified: {
             type: GraphQLBoolean,
