@@ -35,7 +35,7 @@ import { groupOrderProgressMutations } from "./groupOrderProgress";
 import { groupOrderAdminMutations, groupOrderAdminQueries } from "./groupOrderAdmin";
 import { mongoProductStore, resolveTcgplayerProducts } from "../services/tcgplayerProducts";
 import { recordArtistUpdate } from "../services/artistChangeTracker";
-import { ARTIST_EDITABLE_FIELDS, diffArtistProfile, hasArtistAccess, validateArtistProfileUpdate } from "../services/artistProfile";
+import { ADMIN_PREVIEW_ARTIST_NAME, ARTIST_EDITABLE_FIELDS, diffArtistProfile, hasArtistAccess, usesAdminPreviewArtist, validateArtistProfileUpdate } from "../services/artistProfile";
 import {
     PER_ARTIST_COOLDOWN_DAYS,
     SigningReportSummary,
@@ -331,8 +331,8 @@ const RootQuery = new GraphQLObjectType({
             },
         },
         // The artist a verified user manages, or (for admins, or with an id
-        // the user has access to) a specific artist. Null when the user isn't
-        // a verified artist.
+        // the user has access to) a specific artist. Admins without their own
+        // link get the preview artist. Null when the user isn't a verified artist.
         artistDashboard: {
             type: ArtistType,
             args: { artistId: { type: GraphQLID } },
@@ -343,6 +343,9 @@ const RootQuery = new GraphQLObjectType({
                     return await Artist.findById(artistId);
                 }
                 const user = await User.findById(context.userId).select('isVerifiedArtist artistId').lean();
+                if (usesAdminPreviewArtist(context.userRole, user)) {
+                    return await Artist.findOne({ name: ADMIN_PREVIEW_ARTIST_NAME });
+                }
                 if (!user?.isVerifiedArtist || !user.artistId) return null;
                 return await Artist.findById(user.artistId);
             },
@@ -492,6 +495,13 @@ const RootQuery = new GraphQLObjectType({
                     const user = await User.findById(context.userId);
                     if (!user) {
                         throw new Error("User not found");
+                    }
+                    // Lets the header show admins the artist dashboard link (see ADMIN_PREVIEW_ARTIST_NAME)
+                    if (usesAdminPreviewArtist(context.userRole, user)) {
+                        const previewArtist = await Artist.findOne({ name: ADMIN_PREVIEW_ARTIST_NAME }).select('_id').lean();
+                        if (previewArtist) {
+                            return { ...user.toObject(), id: user.id, isVerifiedArtist: true, artistId: previewArtist._id };
+                        }
                     }
                     return user;
                 } catch (err) {

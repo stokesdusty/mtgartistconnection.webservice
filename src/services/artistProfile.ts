@@ -143,3 +143,14 @@ export function hasArtistAccess(user: ArtistAccessUser | null | undefined, artis
     if (!user?.isVerifiedArtist || !user.artistId || !artistId) return false;
     return String(user.artistId) === String(artistId);
 }
+
+// Admins who aren't linked to an artist of their own act as this artist in the
+// header link and the default dashboard, so they can walk through what a verified
+// artist sees. Nothing is written to their user row, so the artist's public page
+// doesn't pick up a "Verified" badge.
+export const ADMIN_PREVIEW_ARTIST_NAME = 'Christopher Rush';
+
+/** True when an admin should be shown the preview artist in place of their own (missing) link. */
+export function usesAdminPreviewArtist(role: string | undefined, user: ArtistAccessUser | null | undefined): boolean {
+    return role === 'admin' && !(user?.isVerifiedArtist && user.artistId);
+}

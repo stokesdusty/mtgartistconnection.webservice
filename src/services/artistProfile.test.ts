@@ -1,4 +1,4 @@
-import { diffArtistProfile, hasArtistAccess, MAX_NOTE_LENGTH, validateArtistProfileUpdate } from './artistProfile';
+import { diffArtistProfile, hasArtistAccess, MAX_NOTE_LENGTH, usesAdminPreviewArtist, validateArtistProfileUpdate } from './artistProfile';
 
 describe('validateArtistProfileUpdate', () => {
     it('only returns fields that were sent', () => {
@@ -77,5 +77,23 @@ describe('hasArtistAccess', () => {
         ['no user', null],
     ])('denies %s', (_label, user) => {
         expect(hasArtistAccess(user as any, artistId)).toBe(false);
+    });
+});
+
+describe('usesAdminPreviewArtist', () => {
+    const artistId = '64b000000000000000000001';
+
+    it('applies to an admin with no artist of their own', () => {
+        expect(usesAdminPreviewArtist('admin', { isVerifiedArtist: false })).toBe(true);
+        expect(usesAdminPreviewArtist('admin', null)).toBe(true);
+    });
+
+    it('keeps an admin who is a verified artist on their own artist', () => {
+        expect(usesAdminPreviewArtist('admin', { isVerifiedArtist: true, artistId })).toBe(false);
+    });
+
+    it('never applies to non-admins', () => {
+        expect(usesAdminPreviewArtist('user', { isVerifiedArtist: false })).toBe(false);
+        expect(usesAdminPreviewArtist(undefined, null)).toBe(false);
     });
 });
